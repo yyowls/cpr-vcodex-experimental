@@ -20,8 +20,8 @@ This project is **not affiliated with Xteink**.
 |---|---|
 | Base firmware | CrossPoint Reader |
 | Device | Xteink X4 |
-| Current release | `1.1.3-vcodex` |
-| Version code | `2026032903` |
+| Current release | `1.1.6-vcodex` |
+| Version code | `2026032906` |
 | Release notes | [CHANGELOG.md](./CHANGELOG.md) |
 | Recommended install | browser OTA fast flash |
 
@@ -192,6 +192,8 @@ That means these views stay coherent with each other:
 It provides:
 
 - a dedicated `Apps > Achievements` screen
+- top tabs for `Pending` and `Completed`
+- `Settings`-style controls: `Confirm` switches tabs, `Up/Down` moves through the list
 - locked vs unlocked states
 - progress labels for cumulative milestones
 - optional unlock popups
@@ -200,27 +202,65 @@ It provides:
 
 Current achievement list:
 
+- Started books:
 - `Open Sesame` - start your first book
 - `Collector` - start 5 different books
 - `Shelf Diver` - start 10 different books
+- `Book Hopper` - start 25 different books
+- `Library Tourist` - start 50 different books
+- Counted sessions:
 - `Warm-Up` - complete your first counted session
 - `Page Ritual` - complete 10 counted sessions
 - `Session Machine` - complete 25 counted sessions
 - `Unstoppable` - complete 50 counted sessions
+- `Century Sessions` - complete 100 counted sessions
+- `Routine Master` - complete 200 counted sessions
+- Finished books:
 - `The End` - finish your first book
+- `Belle of the Books` - finish 2 books
 - `Trilogy` - finish 3 books
+- `Finish Line` - finish 5 books
+- `Word Warden` - finish 7 books
+- `Top Shelf` - finish 10 books
+- `Ink Tamer` - finish 15 books
+- `Closing Time` - finish 20 books
+- `Beast of the Library` - finish 25 books
+- `Chapter Collector` - finish 30 books
+- `Story Keeper` - finish 40 books
+- `Fifty Tomes` - finish 50 books
+- `Library Knight` - finish 60 books
+- `Lord of the Shelves` - finish 75 books
+- `Master of a Hundred Tales` - finish 100 books
+- Total reading time:
 - `One-Hour Club` - read for 1 hour in total
 - `Five and Rising` - read for 5 hours in total
 - `Tenacious Reader` - read for 10 hours in total
 - `Day Tripper` - read for 24 hours in total
+- `Fifty Forward` - read for 50 hours in total
 - `Century Reader` - read for 100 hours in total
+- `Double Century` - read for 200 hours in total
+- Goal days and streaks:
 - `Goal Getter` - reach the daily goal once
 - `Goal Habit` - reach the daily goal on 7 different days
+- `Goal Season` - reach the daily goal on 30 different days
+- `Goal Calendar` - reach the daily goal on 60 different days
 - `Three in a Row` - reach a 3-day goal streak
 - `Week Locked` - reach a 7-day goal streak
+- `Fortnight Fire` - reach a 14-day goal streak
+- `Month Boss` - reach a 30-day goal streak
+- `Season Boss` - reach a 60-day goal streak
+- Bookmarks:
 - `Pin It` - add your first bookmark
 - `Bookmark Hoarder` - add 10 bookmarks
-- `Marathon` - complete a 30-minute session
+- `Flag Garden` - add 25 bookmarks
+- `Flagstorm` - add 50 bookmarks
+- Long sessions:
+- `Settled In` - complete a 15-minute session
+- `Deep Dive` - complete a 30-minute session
+- `Locked In` - complete a 45-minute session
+- `Hourglass` - complete a 60-minute session
+- `Marathon` - complete a 90-minute session
+- `Ultra Session` - complete a 120-minute session
 
 Important behavior:
 
@@ -324,8 +364,8 @@ Important files include:
 
 Each firmware build exposes two identifiers:
 
-- `version`: the human-readable release line, for example `1.1.3-vcodex`
-- `version code`: a numeric build identifier, currently `2026032903`
+- `version`: the human-readable release line, for example `1.1.6-vcodex`
+- `version code`: a numeric build identifier, currently `2026032906`
 
 The boot screen shows both values, so you can identify exactly which firmware is installed on the device.
 For a brief release history, see [CHANGELOG.md](./CHANGELOG.md).
