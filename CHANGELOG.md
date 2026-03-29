@@ -2,6 +2,30 @@
 
 Brief firmware history for `crosspoint-vcodex`.
 
+## 1.1.6-vcodex
+
+- fixed `Achievements` list navigation so the on-screen `Up/Down` controls actually scroll the achievements list
+- expanded finished-book achievements with many more milestones, from early reading streaks to a `100 books` trophy line
+- improved achievements ordering so milestone branches stay grouped more naturally in the list
+
+Version code: `2026032906`
+
+## 1.1.5-vcodex
+
+- fixed `Achievements` opening behavior so it no longer auto-switches tabs on entry
+- aligned `Achievements` navigation with `Settings`: `Confirm` switches tabs and `Up/Down` moves through the list
+- expanded the achievements catalogue with more late-game milestones for books, sessions, goal days, streaks, bookmarks and long sessions
+
+Version code: `2026032905`
+
+## 1.1.4-vcodex
+
+- redesigned `Achievements` with top tabs for `Pending` and `Completed`
+- expanded the achievements catalogue with more session, books, goal-day, goal-streak and bookmark milestones
+- added a stronger ladder of long-session trophies up to a real `Marathon`
+
+Version code: `2026032904`
+
 ## 1.1.3-vcodex
 
 - made `Daily Goal` configurable in `Settings > Apps` with `15 min / 30 min / 45 min / 60 min`
