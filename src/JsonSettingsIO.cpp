@@ -142,9 +142,7 @@ bool JsonSettingsIO::saveState(const CrossPointState& s, const char* path) {
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
   doc["lastKnownValidTimestamp"] = s.lastKnownValidTimestamp;
 
-  String json;
-  serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return saveJsonDocumentToFile("CPS", path, doc);
 }
 
 bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
@@ -209,9 +207,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["fileTransferShortcutOrder"] = s.fileTransferShortcutOrder;
   doc["sleepShortcutOrder"] = s.sleepShortcutOrder;
 
-  String json;
-  serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return saveJsonDocumentToFile("CPS", path, doc);
 }
 
 bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool* needsResave) {
@@ -347,9 +343,7 @@ bool JsonSettingsIO::saveKOReader(const KOReaderCredentialStore& store, const ch
   doc["serverUrl"] = store.getServerUrl();
   doc["matchMethod"] = static_cast<uint8_t>(store.getMatchMethod());
 
-  String json;
-  serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return saveJsonDocumentToFile("KRS", path, doc);
 }
 
 bool JsonSettingsIO::loadKOReader(KOReaderCredentialStore& store, const char* json, bool* needsResave) {
@@ -389,9 +383,7 @@ bool JsonSettingsIO::saveWifi(const WifiCredentialStore& store, const char* path
     obj["password_obf"] = obfuscation::obfuscateToBase64(cred.password);
   }
 
-  String json;
-  serializeJson(doc, json);
-  return Storage.writeFile(path, json);
+  return saveJsonDocumentToFile("WCS", path, doc);
 }
 
 bool JsonSettingsIO::loadWifi(WifiCredentialStore& store, const char* json, bool* needsResave) {

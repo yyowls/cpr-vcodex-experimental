@@ -2,6 +2,14 @@
 
 Brief firmware history for `crosspoint-vcodex`.
 
+## 1.1.10-vcodex
+
+- improved stability around `Settings > Apps` actions by removing redundant settings saves from export/sync flows and reducing write pressure while reordering shortcuts
+- reduced transient memory usage by writing more JSON stores directly to file instead of building intermediate strings in RAM
+- optimized `Settings` and shortcut ordering flows with less repeated list rebuilding and lower allocation churn
+
+Version code: `2026033002`
+
 ## 1.1.9-vcodex
 
 - promoted the current firmware line to `1.1.9-vcodex`

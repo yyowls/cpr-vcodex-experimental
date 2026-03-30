@@ -171,6 +171,7 @@ class SettingsActivity final : public Activity {
   std::vector<SettingInfo> systemSettings;
   std::vector<SettingInfo> appSettings;
   const std::vector<SettingInfo>* currentSettings = nullptr;
+  bool settingsListsBuilt = false;
 
   static constexpr int categoryCount = 5;
   static const StrId categoryNames[categoryCount];
@@ -182,6 +183,7 @@ class SettingsActivity final : public Activity {
   void renderAppSettingsList(const Rect& rect) const;
   void showTransientPopup(const char* message, int progress = -1, unsigned long delayMs = 0);
   void toggleCurrentSetting();
+  void buildSettingsLists();
 
  public:
   explicit SettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)

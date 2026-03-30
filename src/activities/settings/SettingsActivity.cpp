@@ -124,14 +124,39 @@ std::string getSettingValueText(const SettingInfo& setting) {
 void SettingsActivity::onEnter() {
   Activity::onEnter();
 
-  // Build per-category vectors from the shared settings list
+  buildSettingsLists();
+
+  // Reset selection to first category
+  selectedCategoryIndex = 0;
+  selectedSettingIndex = 0;
+
+  // Initialize with first category (Display)
+  enterCategory(0);
+
+  // Trigger first update
+  requestUpdate();
+}
+
+void SettingsActivity::buildSettingsLists() {
+  if (settingsListsBuilt) {
+    return;
+  }
+
+  // Build per-category vectors from the shared settings list once.
   displaySettings.clear();
   readerSettings.clear();
   controlsSettings.clear();
   systemSettings.clear();
   appSettings.clear();
 
-  for (const auto& setting : getSettingsList()) {
+  const auto& sharedSettings = getSettingsList();
+  displaySettings.reserve(sharedSettings.size());
+  readerSettings.reserve(sharedSettings.size());
+  controlsSettings.reserve(sharedSettings.size());
+  systemSettings.reserve(sharedSettings.size());
+  appSettings.reserve(sharedSettings.size() + 16);
+
+  for (const auto& setting : sharedSettings) {
     if (setting.category == StrId::STR_NONE_OPT) continue;
     if (setting.category == StrId::STR_CAT_DISPLAY) {
       displaySettings.push_back(setting);
@@ -189,16 +214,7 @@ void SettingsActivity::onEnter() {
   appSettings.push_back(SettingInfo::Action(StrId::STR_SHORTCUT_VISIBILITY, SettingAction::ShortcutVisibility));
   appSettings.push_back(SettingInfo::Action(StrId::STR_ORDER_HOME_SHORTCUTS, SettingAction::OrderHomeShortcuts));
   appSettings.push_back(SettingInfo::Action(StrId::STR_ORDER_APPS_SHORTCUTS, SettingAction::OrderAppsShortcuts));
-
-  // Reset selection to first category
-  selectedCategoryIndex = 0;
-  selectedSettingIndex = 0;
-
-  // Initialize with first category (Display)
-  enterCategory(0);
-
-  // Trigger first update
-  requestUpdate();
+  settingsListsBuilt = true;
 }
 
 void SettingsActivity::onExit() {
@@ -407,7 +423,6 @@ void SettingsActivity::toggleCurrentSetting() {
                                    RenderLock lock(*this);
                                    READING_STATS.reset();
                                  }
-                                 SETTINGS.saveToFile();
                                  requestUpdate(true);
                                });
         break;
@@ -417,7 +432,6 @@ void SettingsActivity::toggleCurrentSetting() {
         const bool exported = READING_STATS.exportToFile(getReadingStatsExportPath());
         showTransientPopup(exported ? tr(STR_EXPORT_DONE) : tr(STR_EXPORT_FAILED), exported ? 100 : -1,
                            exported ? 350 : 700);
-        SETTINGS.saveToFile();
         requestUpdate(true);
         break;
       }
@@ -436,7 +450,6 @@ void SettingsActivity::toggleCurrentSetting() {
                                                         imported ? 100 : -1, imported ? 350 : 700);
                                    }
                                  }
-                                 SETTINGS.saveToFile();
                                  requestUpdate(true);
                                });
         break;
@@ -447,7 +460,6 @@ void SettingsActivity::toggleCurrentSetting() {
                                  if (!result.isCancelled) {
                                    ACHIEVEMENTS.reset();
                                  }
-                                 SETTINGS.saveToFile();
                                  requestUpdate(true);
                                });
         break;
@@ -455,7 +467,6 @@ void SettingsActivity::toggleCurrentSetting() {
         showTransientPopup(tr(STR_SYNC_WITH_PREV_STATS), 20, 120);
         ACHIEVEMENTS.syncWithPreviousStats();
         showTransientPopup(tr(STR_DONE), 100, 350);
-        SETTINGS.saveToFile();
         requestUpdate(true);
         break;
       case SettingAction::None:

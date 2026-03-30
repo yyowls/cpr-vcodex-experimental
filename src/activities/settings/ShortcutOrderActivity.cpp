@@ -41,10 +41,9 @@ void ShortcutOrderActivity::moveSelectedEntry(const int delta) {
   auto& targetOrder = getShortcutOrderRef(SETTINGS, entries[targetIndex]);
   std::swap(selectedOrder, targetOrder);
   normalizeShortcutOrderSettings(SETTINGS);
-  SETTINGS.saveToFile();
 
+  std::swap(entries[selectedIndex], entries[targetIndex]);
   selectedIndex = targetIndex;
-  reloadEntries();
   requestUpdate();
 }
 
@@ -58,7 +57,6 @@ void ShortcutOrderActivity::loop() {
       moveMode = false;
       requestUpdate();
     } else {
-      SETTINGS.saveToFile();
       finish();
     }
     return;
@@ -67,7 +65,6 @@ void ShortcutOrderActivity::loop() {
   if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
     if (!entries.empty()) {
       moveMode = !moveMode;
-      SETTINGS.saveToFile();
       requestUpdate();
     }
     return;

@@ -46,7 +46,6 @@ void ShortcutVisibilityActivity::toggleSelectedEntry() {
   auto& location = SETTINGS.*(definition->locationPtr);
   location = location == CrossPointSettings::SHORTCUT_HOME ? CrossPointSettings::SHORTCUT_APPS
                                                            : CrossPointSettings::SHORTCUT_HOME;
-  SETTINGS.saveToFile();
   requestUpdate();
 }
 
@@ -59,7 +58,6 @@ void ShortcutVisibilityActivity::onEnter() {
 
 void ShortcutVisibilityActivity::loop() {
   if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-    SETTINGS.saveToFile();
     finish();
     return;
   }
