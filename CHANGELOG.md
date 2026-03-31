@@ -2,6 +2,14 @@
 
 Brief firmware history for `cpr-vcodex`.
 
+## 1.1.14-vcodex
+
+- added `X Small` as a new reader font size with safe settings migration for existing installs
+- regenerated the bundled boot/sleep logo header from the refreshed `Logo120.png`
+- restored real bold and italic rendering for `Bookerly` when using `X Small`
+
+Version code: `2026033102`
+
 ## 1.1.13-vcodex
 
 - renamed the documented firmware line from `crosspoint-vcodex` to `cpr-vcodex`

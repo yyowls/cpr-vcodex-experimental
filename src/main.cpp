@@ -48,8 +48,11 @@ EpdFontFamily bookerly14FontFamily(&bookerly14RegularFont, &bookerly14BoldFont, 
                                    &bookerly14BoldItalicFont);
 #ifndef OMIT_FONTS
 EpdFont bookerly10RegularFont(&bookerly_10_regular);
-EpdFontFamily bookerly10FontFamily(&bookerly10RegularFont, &bookerly10RegularFont, &bookerly10RegularFont,
-                                   &bookerly10RegularFont);
+EpdFont bookerly10BoldFont(&bookerly_10_bold);
+EpdFont bookerly10ItalicFont(&bookerly_10_italic);
+EpdFont bookerly10BoldItalicFont(&bookerly_10_bolditalic);
+EpdFontFamily bookerly10FontFamily(&bookerly10RegularFont, &bookerly10BoldFont, &bookerly10ItalicFont,
+                                   &bookerly10BoldItalicFont);
 EpdFont bookerly12RegularFont(&bookerly_12_regular);
 EpdFont bookerly12BoldFont(&bookerly_12_bold);
 EpdFont bookerly12ItalicFont(&bookerly_12_italic);
