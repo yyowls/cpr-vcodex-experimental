@@ -95,7 +95,7 @@ void SleepActivity::renderCustomSleepScreen() const {
       const auto filename = sleepDir + "/" + files[fileIndex];
       FsFile file;
       if (SleepScreenCache::load(renderer, filename)) {
-        renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
         dir.close();
         return;
       }
@@ -123,7 +123,7 @@ void SleepActivity::renderCustomSleepScreen() const {
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
       LOG_DBG("SLP", "Loading: /sleep.bmp");
       if (SleepScreenCache::load(renderer, "/sleep.bmp")) {
-        renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+        renderer.displayBuffer(HalDisplay::HALF_REFRESH);
         file.close();
         return;
       }
@@ -151,7 +151,7 @@ void SleepActivity::renderDefaultSleepScreen() const {
     renderer.invertScreen();
   }
 
-  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }
 
 void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::string& sourcePath) const {
@@ -210,7 +210,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::str
     SleepScreenCache::save(renderer, sourcePath);
   }
 
-  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 
   if (hasGreyscale) {
     bitmap.rewindToData();
@@ -298,7 +298,7 @@ void SleepActivity::renderCoverSleepScreen() const {
 
   FsFile file;
   if (SleepScreenCache::load(renderer, coverBmpPath)) {
-    renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+    renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     return;
   }
   if (Storage.openFileForRead("SLP", coverBmpPath, file)) {
@@ -317,5 +317,5 @@ void SleepActivity::renderCoverSleepScreen() const {
 
 void SleepActivity::renderBlankSleepScreen() const {
   renderer.clearScreen();
-  renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+  renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }

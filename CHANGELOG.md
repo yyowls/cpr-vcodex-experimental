@@ -2,6 +2,14 @@
 
 Brief firmware history for `cpr-vcodex`.
 
+## 1.1.16-vcodex
+
+- reduced sleep-screen flashing by switching the normal sleep rendering paths back to `HALF_REFRESH`
+- kept `SleepScreenCache` in place so cached sleep images still load quickly
+- refreshed the README header with the contributed text logo and tighter caption spacing
+
+Version code: `2026040102`
+
 ## 1.1.15-vcodex
 
 - improved `Reading Heatmap` month navigation so day selection can cross month boundaries naturally
