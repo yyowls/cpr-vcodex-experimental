@@ -13,7 +13,7 @@
 
 # cpr-vcodex
 
-`cpr-vcodex` builds on the great work of **CrossPoint Reader**. This firmware line starts from **CrossPoint Reader 1.1.1** and has been extended and improved with the help of **OpenAI Codex** for the **Xteink X4**.
+`cpr-vcodex` builds on the great work of **CrossPoint Reader**. The current firmware line is now based on **CrossPoint Reader 1.2.0**, and this fork has been extended and improved with the help of **OpenAI Codex** for the **Xteink X4**.
 
 It keeps the strong CrossPoint base and adds a more polished day-to-day reading experience:
 
@@ -32,10 +32,10 @@ This project is **not affiliated with Xteink**.
 
 | Item | Value |
 |---|---|
-| Base firmware | CrossPoint Reader |
+| Base firmware | `CrossPoint Reader 1.2.0` |
 | Device | Xteink X4 |
-| Current release | `1.1.17-vcodex` |
-| Version code | `2026040201` |
+| Current release (vCodex) | `1.2.0.1` |
+| Version code | `2026040401` |
 | Release notes | [CHANGELOG.md](./CHANGELOG.md) |
 | Recommended install | browser OTA fast flash |
 
@@ -72,7 +72,6 @@ For most users, this is the easiest way to install the firmware:
 | `Sleep tools` | folder selection, preview and sequential/shuffle behavior | [Sleep](#sleep) |
 | `Date controls` | global date format and time zone settings | [Settings](#settings) |
 | `Configurable Daily Goal` | choose `15 / 30 / 45 / 60 min` and use that target for goal-based stats | [Reading analytics suite](#reading-analytics-suite) |
-| `Version code` | exact build identification shown on boot | [Versioning](#versioning) |
 
 ## 5-minute start
 
@@ -438,12 +437,13 @@ Important files include:
 
 ## Versioning
 
-Each firmware build exposes two identifiers:
+Each firmware build now keeps the base project version and the fork release separate:
 
-- `version`: the human-readable release line, currently `1.1.17-vcodex`
-- `version code`: a numeric build identifier, currently `2026040201`
+- `crosspoint.version`: the upstream base release, currently `1.2.0`
+- `vcodex.version`: the fork release shown to the user, currently `1.2.0.1`
+- `vcodex.version_code`: the exact build identifier, currently `2026040401`
 
-The boot screen shows both values, so you can identify exactly which firmware is installed on the device.
+The firmware UI keeps showing the fork version to avoid confusion, while the base version remains available as metadata for tracking upstream sync.
 For a brief release history, see [CHANGELOG.md](./CHANGELOG.md).
 
 ## Build from source

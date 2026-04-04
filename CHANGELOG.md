@@ -2,6 +2,14 @@
 
 Brief firmware history for `cpr-vcodex`.
 
+## 1.2.0.1
+
+- rebased the fork onto the upstream `CrossPoint Reader 1.2.0` line
+- separated base-version metadata from fork-version metadata in the firmware configuration
+- switched the visible `vcodex_release` firmware line to `1.2.0.1` while keeping `CrossPoint Reader 1.2.0` as the tracked upstream base
+
+Version code: `2026040401`
+
 ## 1.1.17-vcodex
 
 - added long-press removal with confirmation for recent books in both `Home` and `Apps > Recent Books`
