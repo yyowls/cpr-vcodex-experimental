@@ -264,6 +264,8 @@ class CrossPointSettings {
   uint8_t sleepShortcutVisible = 1;
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
+  // Dark mode for UI and reader rendering
+  uint8_t darkMode = 0;
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
   uint8_t embeddedStyle = 1;
   // Show hidden files/directories (starting with '.') in the file browser (0 = hidden, 1 = show)

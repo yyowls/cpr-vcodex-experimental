@@ -54,6 +54,8 @@ std::string ReadMeActivity::getTopicTitle(const Topic topic) {
       return tr(STR_ACHIEVEMENTS);
     case Topic::IfFound:
       return tr(STR_IF_FOUND_RETURN_ME);
+    case Topic::Reports:
+      return tr(STR_README_TOPIC_REPORTS_SUGGESTIONS);
   }
   return "";
 }
@@ -74,11 +76,16 @@ std::string ReadMeActivity::getTopicBody(const Topic topic) {
       return tr(STR_README_ACHIEVEMENTS_BODY);
     case Topic::IfFound:
       return tr(STR_README_IF_FOUND_BODY);
+    case Topic::Reports:
+      return tr(STR_README_REPORTS_SUGGESTIONS_BODY);
   }
   return "";
 }
 
 std::string ReadMeActivity::getTopicIndexLabel(const Topic topic) {
+  if (topic == Topic::Reports) {
+    return "99. " + getTopicTitle(topic);
+  }
   return std::to_string(static_cast<int>(topic)) + ". " + getTopicTitle(topic);
 }
 

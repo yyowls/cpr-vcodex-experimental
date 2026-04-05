@@ -899,8 +899,11 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   LOG_DBG("ERS", "Heap: before=%lu after=%lu delta=%ld", heapBefore, heapAfter,
           (int32_t)heapAfter - (int32_t)heapBefore);
 
+  const bool enableTextAA = SETTINGS.textAntiAliasing && !renderer.isDarkMode();
+  const bool enableImageGrayscaleOnly = renderer.isDarkMode() && page->hasImages();
+
   // Force special handling for pages with images when anti-aliasing is on
-  bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
+  bool imagePageWithAA = page->hasImages() && enableTextAA;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
   renderStatusBar();
@@ -927,7 +930,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       renderer.displayBuffer(HalDisplay::FAST_REFRESH);
     }
     // Double FAST_REFRESH handles ghosting for image pages; don't count toward full refresh cadence
-  } else if (SETTINGS.textAntiAliasing) {
+  } else if (enableTextAA) {
     // Match the AA refresh behavior used in crosspet: the grayscale pass works
     // better when the BW pass is shown with FAST_REFRESH instead of HALF_REFRESH.
     pagesUntilFullRefresh--;
@@ -951,17 +954,25 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
 
   // grayscale rendering
   // TODO: Only do this if font supports it
-  if (SETTINGS.textAntiAliasing) {
+  if (enableTextAA || enableImageGrayscaleOnly) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    if (enableImageGrayscaleOnly) {
+      page->renderImages(renderer, orientedMarginLeft, orientedMarginTop);
+    } else {
+      page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    }
     renderer.copyGrayscaleLsbBuffers();
     const auto tGrayLsb = millis();
 
     // Render and copy to MSB buffer
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    if (enableImageGrayscaleOnly) {
+      page->renderImages(renderer, orientedMarginLeft, orientedMarginTop);
+    } else {
+      page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    }
     renderer.copyGrayscaleMsbBuffers();
     const auto tGrayMsb = millis();
 

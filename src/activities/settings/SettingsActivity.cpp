@@ -496,6 +496,12 @@ void SettingsActivity::toggleCurrentSetting() {
     ACHIEVEMENTS.syncWithPreviousStats();
   }
 
+  if (setting.valuePtr == &CrossPointSettings::darkMode) {
+    renderer.setDarkMode(SETTINGS.darkMode);
+    renderer.requestNextFullRefresh();
+    requestUpdate(true);
+  }
+
   SETTINGS.saveToFile();
 }
 

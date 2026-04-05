@@ -228,6 +228,22 @@ void XtcReaderActivity::render(RenderLock&&) {
 }
 
 void XtcReaderActivity::renderPage() {
+  struct DarkModeScope {
+    GfxRenderer& renderer;
+    bool restore;
+    ~DarkModeScope() {
+      if (restore) {
+        renderer.setDarkMode(true);
+      }
+    }
+  };
+
+  const bool restoreDarkMode = renderer.isDarkMode();
+  if (restoreDarkMode) {
+    renderer.setDarkMode(false);
+  }
+  DarkModeScope darkModeScope{renderer, restoreDarkMode};
+
   const uint16_t pageWidth = xtc->getPageWidth();
   const uint16_t pageHeight = xtc->getPageHeight();
   const uint8_t bitDepth = xtc->getBitDepth();
@@ -311,7 +327,7 @@ void XtcReaderActivity::renderPage() {
     for (uint16_t y = 0; y < pageHeight; y++) {
       for (uint16_t x = 0; x < pageWidth; x++) {
         if (getPixelValue(x, y) >= 1) {
-          renderer.drawPixel(x, y, true);
+          renderer.drawPixelDirect(x, y, true);
         }
       }
     }
@@ -331,7 +347,7 @@ void XtcReaderActivity::renderPage() {
     for (uint16_t y = 0; y < pageHeight; y++) {
       for (uint16_t x = 0; x < pageWidth; x++) {
         if (getPixelValue(x, y) == 1) {  // Dark grey only
-          renderer.drawPixel(x, y, false);
+          renderer.drawPixelDirect(x, y, false);
         }
       }
     }
@@ -344,7 +360,7 @@ void XtcReaderActivity::renderPage() {
       for (uint16_t x = 0; x < pageWidth; x++) {
         const uint8_t pv = getPixelValue(x, y);
         if (pv == 1 || pv == 2) {  // Dark grey or Light grey
-          renderer.drawPixel(x, y, false);
+          renderer.drawPixelDirect(x, y, false);
         }
       }
     }
@@ -358,7 +374,7 @@ void XtcReaderActivity::renderPage() {
     for (uint16_t y = 0; y < pageHeight; y++) {
       for (uint16_t x = 0; x < pageWidth; x++) {
         if (getPixelValue(x, y) >= 1) {
-          renderer.drawPixel(x, y, true);
+          renderer.drawPixelDirect(x, y, true);
         }
       }
     }
@@ -384,7 +400,7 @@ void XtcReaderActivity::renderPage() {
         const bool isBlack = !((pageBuffer[srcByte] >> srcBit) & 1);  // XTC: 0 = black, 1 = white
 
         if (isBlack) {
-          renderer.drawPixel(srcX, srcY, true);
+          renderer.drawPixelDirect(srcX, srcY, true);
         }
       }
     }

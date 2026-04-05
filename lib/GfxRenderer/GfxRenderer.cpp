@@ -168,7 +168,7 @@ static void renderCharImpl(const GfxRenderer& renderer, GfxRenderer::RenderMode 
 
 // IMPORTANT: This function is in critical rendering path and is called for every pixel. Please keep it as simple and
 // efficient as possible.
-void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
+void GfxRenderer::drawPixelRaw(const int x, const int y, const bool state) const {
   int phyX = 0;
   int phyY = 0;
 
@@ -190,6 +190,11 @@ void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
   } else {
     frameBuffer[byteIndex] |= 1 << bitPosition;  // Set bit
   }
+}
+
+void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
+  const bool effectiveState = (darkMode && renderMode == BW) ? !state : state;
+  drawPixelRaw(x, y, effectiveState);
 }
 
 int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontFamily::Style style) const {
@@ -582,7 +587,8 @@ void GfxRenderer::drawImage(const uint8_t bitmap[], const int x, const int y, co
 }
 
 void GfxRenderer::drawIcon(const uint8_t bitmap[], const int x, const int y, const int width, const int height) const {
-  display.drawImageTransparent(bitmap, y, getScreenWidth() - width - x, height, width);
+  display.drawImageTransparent(bitmap, y, getScreenWidth() - width - x, height, width, false,
+                               darkMode && renderMode == BW);
 }
 
 void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, const int maxWidth, const int maxHeight,
@@ -667,8 +673,12 @@ void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, con
 
       const uint8_t val = outputRow[bmpX / 4] >> (6 - ((bmpX * 2) % 8)) & 0x3;
 
-      if (renderMode == BW && val < 3) {
-        drawPixel(screenX, screenY);
+      if (renderMode == BW) {
+        if (darkMode) {
+          drawPixelRaw(screenX, screenY, val < 3);
+        } else if (val < 3) {
+          drawPixelRaw(screenX, screenY, true);
+        }
       } else if (renderMode == GRAYSCALE_MSB && (val == 1 || val == 2)) {
         drawPixel(screenX, screenY, false);
       } else if (renderMode == GRAYSCALE_LSB && val == 1) {
@@ -739,10 +749,12 @@ void GfxRenderer::drawBitmap1Bit(const Bitmap& bitmap, const int x, const int y,
 
       // For 1-bit source: 0 or 1 -> map to black (0,1,2) or white (3)
       // val < 3 means black pixel (draw it)
-      if (val < 3) {
-        drawPixel(screenX, screenY, true);
+      if (darkMode) {
+        drawPixelRaw(screenX, screenY, val < 3);
+      } else if (val < 3) {
+        drawPixelRaw(screenX, screenY, true);
       }
-      // White pixels (val == 3) are not drawn (leave background)
+      // White pixels (val == 3) are only skipped in normal mode where the page background is already white.
     }
   }
 
@@ -823,7 +835,8 @@ static unsigned long start_ms = 0;
 
 void GfxRenderer::clearScreen(const uint8_t color) const {
   start_ms = millis();
-  display.clearScreen(color);
+  const uint8_t effectiveColor = (darkMode && renderMode == BW && color == 0xFF) ? 0x00 : color;
+  display.clearScreen(effectiveColor);
 }
 
 void GfxRenderer::invertScreen() const {
@@ -835,7 +848,12 @@ void GfxRenderer::invertScreen() const {
 void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode) const {
   auto elapsed = millis() - start_ms;
   LOG_DBG("GFX", "Time = %lu ms from clearScreen to displayBuffer", elapsed);
-  display.displayBuffer(refreshMode, fadingFix);
+  HalDisplay::RefreshMode effectiveRefreshMode = refreshMode;
+  if (nextRefreshFull) {
+    effectiveRefreshMode = HalDisplay::FULL_REFRESH;
+    nextRefreshFull = false;
+  }
+  display.displayBuffer(effectiveRefreshMode, fadingFix, false);
 }
 
 std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth,
@@ -1105,9 +1123,9 @@ size_t GfxRenderer::getBufferSize() { return HalDisplay::BUFFER_SIZE; }
 // unused
 // void GfxRenderer::grayscaleRevert() const { display.grayscaleRevert(); }
 
-void GfxRenderer::copyGrayscaleLsbBuffers() const { display.copyGrayscaleLsbBuffers(frameBuffer); }
+void GfxRenderer::copyGrayscaleLsbBuffers() const { display.copyGrayscaleLsbBuffers(frameBuffer, false); }
 
-void GfxRenderer::copyGrayscaleMsbBuffers() const { display.copyGrayscaleMsbBuffers(frameBuffer); }
+void GfxRenderer::copyGrayscaleMsbBuffers() const { display.copyGrayscaleMsbBuffers(frameBuffer, false); }
 
 void GfxRenderer::displayGrayBuffer() const { display.displayGrayBuffer(fadingFix); }
 
@@ -1178,7 +1196,7 @@ void GfxRenderer::restoreBwBuffer() {
     memcpy(frameBuffer + offset, bwBufferChunks[i], BW_BUFFER_CHUNK_SIZE);
   }
 
-  display.cleanupGrayscaleBuffers(frameBuffer);
+  display.cleanupGrayscaleBuffers(frameBuffer, false);
 
   freeBwBufferChunks();
   LOG_DBG("GFX", "Restored and freed BW buffer chunks");
@@ -1190,7 +1208,7 @@ void GfxRenderer::restoreBwBuffer() {
  */
 void GfxRenderer::cleanupGrayscaleWithFrameBuffer() const {
   if (frameBuffer) {
-    display.cleanupGrayscaleBuffers(frameBuffer);
+    display.cleanupGrayscaleBuffers(frameBuffer, false);
   }
 }
 

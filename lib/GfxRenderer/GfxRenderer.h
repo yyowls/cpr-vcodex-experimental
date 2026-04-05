@@ -38,10 +38,12 @@ class GfxRenderer {
   RenderMode renderMode;
   Orientation orientation;
   bool fadingFix;
+  bool darkMode;
   uint8_t textDarkness = 0;  // 0=normal, 1=dark, 2=extra dark
   uint8_t* frameBuffer = nullptr;
   uint8_t* bwBufferChunks[BW_BUFFER_NUM_CHUNKS] = {nullptr};
   std::map<int, EpdFontFamily> fontMap;
+  mutable bool nextRefreshFull = false;
 
   // Mutable because drawText() is const but needs to delegate scan-mode
   // recording to the (non-const) FontCacheManager. Same pragmatic compromise
@@ -50,6 +52,7 @@ class GfxRenderer {
 
   void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState,
                   EpdFontFamily::Style style) const;
+  void drawPixelRaw(int x, int y, bool state) const;
   void freeBwBufferChunks();
   template <Color color>
   void drawPixelDither(int x, int y) const;
@@ -58,7 +61,7 @@ class GfxRenderer {
 
  public:
   explicit GfxRenderer(HalDisplay& halDisplay)
-      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false) {}
+      : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false), darkMode(false) {}
   ~GfxRenderer() { freeBwBufferChunks(); }
 
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
@@ -80,6 +83,11 @@ class GfxRenderer {
   // Fading fix control
   void setFadingFix(const bool enabled) { fadingFix = enabled; }
 
+  // Dark mode control
+  void setDarkMode(const bool enabled) { darkMode = enabled; }
+  bool isDarkMode() const { return darkMode; }
+  void requestNextFullRefresh() const { nextRefreshFull = true; }
+
   // Text darkness control for anti-aliased reader text.
   void setTextDarkness(const uint8_t d) { textDarkness = d; }
   uint8_t getTextDarkness() const { return textDarkness; }
@@ -96,6 +104,7 @@ class GfxRenderer {
 
   // Drawing
   void drawPixel(int x, int y, bool state = true) const;
+  void drawPixelDirect(int x, int y, bool state = true) const { drawPixelRaw(x, y, state); }
   void drawLine(int x1, int y1, int x2, int y2, bool state = true) const;
   void drawLine(int x1, int y1, int x2, int y2, int lineWidth, bool state) const;
   void drawArc(int maxRadius, int cx, int cy, int xDir, int yDir, int lineWidth, bool state) const;

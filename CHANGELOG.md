@@ -2,25 +2,16 @@
 
 Brief firmware history for `cpr-vcodex`.
 
-## 1.2.0.3
+## 1.2.0.4
 
 - reviewed the translation set after the book-id migration work and repaired damaged strings in the language files
 - normalized corrupted Hungarian and Lithuanian entries to clean text instead of leaving broken characters on device
 - fixed the damaged Italian `ReadMe > Stats` body text
+- added a global `Dark Mode` toggle in `Settings > Display`, implemented centrally in the renderer so UI text goes white-on-black while book images keep their original polarity
 - added `Text Darkness` for anti-aliased reader text, adapted from the [`crosspet`](https://github.com/trilwu/crosspet) fork
-- continued the `1.2.0.3` line for the next round of `cpr-vcodex` work and test builds
 - added `Lexend` as a reader font family, adapted from the [`crosspet`](https://github.com/trilwu/crosspet) fork
 
-Version code: `2026040503`
-
-## 1.2.0.2
-
-- reviewed the translation set after the book-id migration work and repaired damaged strings in the language files
-- normalized corrupted Hungarian and Lithuanian entries to clean text instead of leaving broken characters on device
-- fixed the damaged Italian `ReadMe > Stats` body text
-- added `Text Darkness` for anti-aliased reader text, adapted from the [`crosspet`](https://github.com/trilwu/crosspet) fork
-
-Version code: `2026040402`
+Version code: `2026040504`
 
 ## 1.2.0.1
 

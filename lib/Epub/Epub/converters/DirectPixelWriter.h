@@ -15,6 +15,7 @@
 struct DirectPixelWriter {
   uint8_t* fb;
   GfxRenderer::RenderMode mode;
+  bool darkMode;
 
   // Orientation is collapsed into a linear transform:
   //   phyX = phyXBase + x * phyXStepX + y * phyXStepY
@@ -29,6 +30,7 @@ struct DirectPixelWriter {
   void init(GfxRenderer& renderer) {
     fb = renderer.getFrameBuffer();
     mode = renderer.getRenderMode();
+    darkMode = renderer.isDarkMode();
 
     switch (renderer.getOrientation()) {
       case GfxRenderer::Portrait:
@@ -95,8 +97,8 @@ struct DirectPixelWriter {
     bool state;
     switch (mode) {
       case GfxRenderer::BW:
-        draw = (pixelValue < 3);
-        state = true;
+        draw = darkMode ? true : (pixelValue < 3);
+        state = (pixelValue < 3);
         break;
       case GfxRenderer::GRAYSCALE_MSB:
         draw = (pixelValue == 1 || pixelValue == 2);

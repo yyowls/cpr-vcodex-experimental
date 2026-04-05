@@ -26,17 +26,29 @@ bool canUseSleepCache(const Bitmap& bitmap) {
 void SleepActivity::onEnter() {
   Activity::onEnter();
   GUI.drawPopup(renderer, tr(STR_ENTERING_SLEEP));
+  const bool restoreDarkMode = renderer.isDarkMode();
+  if (restoreDarkMode) {
+    renderer.setDarkMode(false);
+  }
 
   switch (SETTINGS.sleepScreen) {
     case (CrossPointSettings::SLEEP_SCREEN_MODE::BLANK):
-      return renderBlankSleepScreen();
+      renderBlankSleepScreen();
+      break;
     case (CrossPointSettings::SLEEP_SCREEN_MODE::CUSTOM):
-      return renderCustomSleepScreen();
+      renderCustomSleepScreen();
+      break;
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
-      return renderCoverSleepScreen();
+      renderCoverSleepScreen();
+      break;
     default:
-      return renderDefaultSleepScreen();
+      renderDefaultSleepScreen();
+      break;
+  }
+
+  if (restoreDarkMode) {
+    renderer.setDarkMode(true);
   }
 }
 

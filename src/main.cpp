@@ -229,6 +229,7 @@ void enterDeepSleep() {
 void setupDisplayAndFonts() {
   display.begin();
   renderer.begin();
+  renderer.setDarkMode(SETTINGS.darkMode);
   activityManager.begin();
   LOG_DBG("MAIN", "Display initialized");
 
@@ -359,6 +360,14 @@ void loop() {
   gpio.update();
 
   renderer.setFadingFix(SETTINGS.fadingFix);
+  {
+    static uint8_t lastDarkMode = 0xFF;
+    if (SETTINGS.darkMode != lastDarkMode) {
+      renderer.setDarkMode(SETTINGS.darkMode);
+      renderer.requestNextFullRefresh();
+      lastDarkMode = SETTINGS.darkMode;
+    }
+  }
 
   if (Serial && millis() - lastMemPrint >= 10000) {
     LOG_INF("MEM", "Free: %d bytes, Total: %d bytes, Min Free: %d bytes, MaxAlloc: %d bytes", ESP.getFreeHeap(),
