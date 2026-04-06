@@ -2,6 +2,14 @@
 
 Brief firmware history for `cpr-vcodex`.
 
+## 1.2.0.6
+
+- bumped the fork release line to `1.2.0.6`
+- refreshed README metadata and release references to match the current fork state
+- kept the firmware feature set unchanged while publishing the updated release line
+
+Version code: `2026040606`
+
 ## 1.2.0.5
 
 - rebuilt the current firmware line as `1.2.0.5`

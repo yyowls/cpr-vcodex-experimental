@@ -13,39 +13,35 @@
 
 # cpr-vcodex
 
-`cpr-vcodex` builds on the great work of **CrossPoint Reader**. The current firmware line is now based on **CrossPoint Reader 1.2.0**, and this fork has been extended and improved with the help of **OpenAI Codex** for the **Xteink X4**.
-
-It keeps the strong CrossPoint base and adds a more polished day-to-day reading experience:
-
-- better Home workflow
-- configurable Home and Apps shortcuts
-- coherent date-based reading stats
-- heatmap and per-day views
-- achievements
-- built-in ReadMe guide on device
-- EPUB bookmarks with a global app
-- visible firmware version code on boot
-
-This project is **not affiliated with Xteink**.
-
 ## At a glance
 
 | Item | Value |
 |---|---|
 | Base firmware | `CrossPoint Reader 1.2.0` |
 | Device | Xteink X4 |
-| Current release (vCodex) | `1.2.0.5` |
-| Version code | `2026040605` |
+| Current release (vCodex) | `1.2.0.6` |
+| Version code | `2026040606` |
 | Release notes | [CHANGELOG.md](./CHANGELOG.md) |
-| Recommended install | browser OTA fast flash |
+| Recommended install | browser fast flash |
 
-The in-device `Update cpr-vCodex` feature reads a lightweight [`ota.json`](./ota.json) manifest from the repo instead of querying the GitHub Releases API directly.
+`cpr-vcodex` builds on the great work of **CrossPoint Reader**. The current firmware line is now based on **CrossPoint Reader 1.2.0**, and this fork has been extended and improved with the help of **OpenAI Codex** for the **Xteink X4**.
+
+This project is **not affiliated with Xteink**.
+
+## Highlights
+
+- richer reading analytics on the device itself: `Reading Stats`, `Heatmap`, `Reading Day` and per-book detail
+- console-style `Achievements` built on top of the same reading data
+- better day/date model through `Sync Day`, so stats stay coherent on the X4
+- faster-to-use `Home` and `Apps` with configurable shortcut placement and order
+- reader-focused extras like `Dark Mode`, `Text Darkness`, `Lexend` and EPUB bookmarks
+- practical device-side utilities such as `ReadMe`, `If found, please return me` and `Sleep` tools
 
 ## Easy installation
 
 For most users, this is the easiest way to install the firmware:
 
-1. Download the latest `cpr-vcodex` firmware from [GitHub Releases](https://github.com/franssjz/crosspoint-reader-codex/releases).
+1. Download the latest `cpr-vcodex` firmware from [GitHub Releases](https://github.com/franssjz/cpr-vcodex/releases).
 2. Turn on and unlock your Xteink X4.
 3. Open [xteink.dve.al](https://xteink.dve.al/).
 4. In `OTA fast flash controls`, select the downloaded firmware file.
@@ -57,26 +53,29 @@ For most users, this is the easiest way to install the firmware:
 
 > To return to the original CrossPoint Reader later, repeat the same process with the original firmware file.
 
+The in-device update entry is currently hidden.
+For now, update using the release file from GitHub and the browser flasher above.
+
 ## What this fork adds
 
 | Feature | What it adds | More info |
 |---|---|---|
-| `Lyra Custom` default theme | reading-first default presentation from first boot | [Home and Apps](#home-and-apps) |
-| `Home + Shortcuts` | configurable Home/Apps placement and reorderable shortcut lists | [Home and Apps](#home-and-apps) |
-| `Sync Day` | manual Wi-Fi day sync plus fallback-day logic | [Sync Day and date model](#sync-day-and-date-model) |
 | `Reading Stats` | richer totals, started books, per-book detail and extended trends | [Reading analytics suite](#reading-analytics-suite) |
 | `Reading Heatmap` | monthly calendar view of reading intensity | [Reading analytics suite](#reading-analytics-suite) |
 | `Reading Day` | drill-down into one specific reading day | [Reading analytics suite](#reading-analytics-suite) |
 | `Achievements` | console-style milestones and optional popups | [Achievements](#achievements) |
+| `Sync Day` | manual Wi-Fi day sync plus fallback-day logic | [Sync Day and date model](#sync-day-and-date-model) |
+| `Home + Shortcuts` | configurable Home/Apps placement and reorderable shortcut lists | [Home and Apps](#home-and-apps) |
+| `Dark Mode` | global white-on-black UI and reader rendering toggle | [Settings](#settings) |
+| `Bookmarks` | EPUB bookmarks plus a global bookmarks app | [Bookmarks](#bookmarks) |
+| `Lyra Custom` default theme | reading-first default presentation from first boot | [Home and Apps](#home-and-apps) |
 | `ReadMe` | on-device quick guide for the main CPR-vCodex features | [ReadMe](#readme) |
 | `If found, please return me` | lost-device contact screen fed by `/if_found.txt` on the SD card | [If found, please return me](#if-found-please-return-me) |
-| `Bookmarks` | EPUB bookmarks plus a global bookmarks app | [Bookmarks](#bookmarks) |
 | `Sleep tools` | folder selection, preview and sequential/shuffle behavior | [Sleep](#sleep) |
-| `Dark Mode` | global white-on-black UI and reader rendering toggle | [Settings](#settings) |
 | `Text Darkness` | darker anti-aliased reader text, adapted from the [`crosspet`](https://github.com/trilwu/crosspet) fork | [Settings](#settings) |
 | `Lexend reader font` | additional reader font family adapted from the [`crosspet`](https://github.com/trilwu/crosspet) fork | [Settings](#settings) |
-| `Date controls` | global date format and time zone settings | [Settings](#settings) |
 | `Configurable Daily Goal` | choose `15 / 30 / 45 / 60 min` and use that target for goal-based stats | [Reading analytics suite](#reading-analytics-suite) |
+| `Date controls` | global date format and time zone settings | [Settings](#settings) |
 
 ## 5-minute start
 
@@ -453,8 +452,8 @@ Important files include:
 Each firmware build now keeps the base project version and the fork release separate:
 
 - `crosspoint.version`: the upstream base release, currently `1.2.0`
-- `vcodex.version`: the fork release shown to the user, currently `1.2.0.5`
-- `vcodex.version_code`: the exact build identifier, currently `2026040605`
+- `vcodex.version`: the fork release shown to the user, currently `1.2.0.6`
+- `vcodex.version_code`: the exact build identifier, currently `2026040606`
 
 The firmware UI keeps showing the fork version to avoid confusion, while the base version remains available as metadata for tracking upstream sync.
 For a brief release history, see [CHANGELOG.md](./CHANGELOG.md).
@@ -483,8 +482,8 @@ Development prerequisites:
 Clone and build:
 
 ```sh
-git clone --recursive <your-fork-url>
-cd crosspoint-reader-codex
+git clone --recursive https://github.com/franssjz/cpr-vcodex.git
+cd cpr-vcodex
 pio run -e vcodex_release
 ```
 
