@@ -332,7 +332,6 @@ void loop() {
     static uint8_t lastDarkMode = 0xFF;
     if (SETTINGS.darkMode != lastDarkMode) {
       renderer.setDarkMode(SETTINGS.darkMode);
-      renderer.requestNextFullRefresh();
       lastDarkMode = SETTINGS.darkMode;
     }
   }
