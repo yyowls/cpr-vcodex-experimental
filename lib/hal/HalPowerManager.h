@@ -1,8 +1,10 @@
 #pragma once
 
 #include <Arduino.h>
+#include <BatteryMonitor.h>
 #include <InputManager.h>
 #include <Logging.h>
+#include <Wire.h>
 #include <freertos/semphr.h>
 
 #include <cassert>
@@ -16,6 +18,10 @@ class HalPowerManager {
   int normalFreq = 0;  // MHz
   bool isLowPower = false;
 
+  bool batteryUseI2C_ = false;
+  mutable int batteryCachedPercent_ = 0;
+  mutable unsigned long batteryLastPollMs_ = 0;
+
   enum LockMode { None, NormalSpeed };
   LockMode currentLockMode = None;
   SemaphoreHandle_t modeMutex = nullptr;  // Protect access to currentLockMode
@@ -23,6 +29,7 @@ class HalPowerManager {
  public:
   static constexpr int LOW_POWER_FREQ = 10;                    // MHz
   static constexpr unsigned long IDLE_POWER_SAVING_MS = 3000;  // ms
+  static constexpr unsigned long BATTERY_POLL_MS = 1500;       // ms
 
   void begin();
 

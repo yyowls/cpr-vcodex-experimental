@@ -18,6 +18,8 @@
 | Item | Value |
 |---|---|
 | Base firmware | `CrossPoint Reader 1.2.0` |
+| Upstream base commit | [`e6c6e72`](https://github.com/crosspoint-reader/crosspoint-reader/commit/e6c6e72a249a0edcd525ee29029739e457e4e797) |
+| Upstream carry-forward | manual carry-forward from [`9b38851`](https://github.com/crosspoint-reader/crosspoint-reader/commit/9b388513869a16f8bb3310fc5a3dd85385614fac) and [`1c13331`](https://github.com/crosspoint-reader/crosspoint-reader/commit/1c1333118962f456ff56a3c599f52520d2d204d9) |
 | Device | Xteink X4 |
 | Current release (vCodex) | `1.2.0.6` |
 | Version code | `2026040606` |
@@ -25,6 +27,8 @@
 | Recommended install | browser fast flash |
 
 `cpr-vcodex` builds on the great work of **CrossPoint Reader**. The current firmware line is now based on **CrossPoint Reader 1.2.0**, and this fork has been extended and improved with the help of **OpenAI Codex** for the **Xteink X4**.
+
+In practical terms, the fork currently takes **CrossPoint Reader `1.2.0` / commit `e6c6e72`** as its upstream base and now manually carries forward the upstream work from **`9b38851`** and **`1c13331`**, adapted carefully to keep the fork stable on the **Xteink X4**.
 
 This project is **not affiliated with Xteink**.
 

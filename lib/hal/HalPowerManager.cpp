@@ -11,7 +11,13 @@
 HalPowerManager powerManager;  // Singleton instance
 
 void HalPowerManager::begin() {
-  pinMode(BAT_GPIO0, INPUT);
+  if (gpio.deviceIsX3()) {
+    Wire.begin(X3_I2C_SDA, X3_I2C_SCL, X3_I2C_FREQ);
+    Wire.setTimeOut(4);
+    batteryUseI2C_ = true;
+  } else {
+    pinMode(BAT_GPIO0, INPUT);
+  }
   normalFreq = getCpuFrequencyMhz();
   modeMutex = xSemaphoreCreateMutex();
   assert(modeMutex != nullptr);
@@ -58,6 +64,13 @@ void HalPowerManager::startDeepSleep(HalGPIO& gpio) const {
     delay(50);
     gpio.update();
   }
+  constexpr gpio_num_t GPIO_SPIWP = GPIO_NUM_13;
+  gpio_set_direction(GPIO_SPIWP, GPIO_MODE_OUTPUT);
+  gpio_set_level(GPIO_SPIWP, 0);
+  esp_sleep_config_gpio_isolate();
+  gpio_deep_sleep_hold_en();
+  gpio_hold_en(GPIO_SPIWP);
+  pinMode(InputManager::POWER_BUTTON_PIN, INPUT_PULLUP);
   // Arm the wakeup trigger *after* the button is released
   esp_deep_sleep_enable_gpio_wakeup(1ULL << InputManager::POWER_BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
   // Enter Deep Sleep
@@ -65,8 +78,34 @@ void HalPowerManager::startDeepSleep(HalGPIO& gpio) const {
 }
 
 uint16_t HalPowerManager::getBatteryPercentage() const {
+  if (batteryUseI2C_) {
+    const unsigned long now = millis();
+    if (batteryLastPollMs_ != 0 && (now - batteryLastPollMs_) < BATTERY_POLL_MS) {
+      return batteryCachedPercent_;
+    }
+
+    Wire.beginTransmission(I2C_ADDR_BQ27220);
+    Wire.write(BQ27220_SOC_REG);
+    if (Wire.endTransmission(false) != 0) {
+      batteryLastPollMs_ = now;
+      return batteryCachedPercent_;
+    }
+    Wire.requestFrom(I2C_ADDR_BQ27220, static_cast<uint8_t>(2));
+    if (Wire.available() < 2) {
+      batteryLastPollMs_ = now;
+      return batteryCachedPercent_;
+    }
+    const uint8_t lo = Wire.read();
+    const uint8_t hi = Wire.read();
+    const uint16_t soc = (hi << 8) | lo;
+    batteryCachedPercent_ = soc > 100 ? 100 : soc;
+    batteryLastPollMs_ = now;
+    return batteryCachedPercent_;
+  }
+
   static const BatteryMonitor battery = BatteryMonitor(BAT_GPIO0);
-  return battery.readPercentage();
+  batteryCachedPercent_ = battery.readPercentage();
+  return batteryCachedPercent_;
 }
 
 HalPowerManager::Lock::Lock() {
