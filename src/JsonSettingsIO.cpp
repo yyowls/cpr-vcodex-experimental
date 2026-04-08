@@ -23,6 +23,7 @@
 
 namespace {
 constexpr uint8_t FONT_SIZE_SCHEMA_VERSION = 2;
+constexpr uint8_t FONT_FAMILY_SCHEMA_VERSION = 2;
 
 class HalFileStream : public Stream {
  public:
@@ -332,6 +333,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   }
 
   // Front button remap — managed by RemapFrontButtons sub-activity, not in SettingsList.
+  doc["fontFamilySchemaVersion"] = FONT_FAMILY_SCHEMA_VERSION;
   doc["frontButtonBack"] = s.frontButtonBack;
   doc["frontButtonConfirm"] = s.frontButtonConfirm;
   doc["frontButtonLeft"] = s.frontButtonLeft;
@@ -442,16 +444,16 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       if (needsResave) *needsResave = true;
     }
   }
+  const uint8_t fontFamilySchemaVersion = doc["fontFamilySchemaVersion"] | FONT_FAMILY_SCHEMA_VERSION;
   const uint8_t rawFontFamily = doc["fontFamily"] | s.fontFamily;
-  if (rawFontFamily == 3) {
+  if (fontFamilySchemaVersion < FONT_FAMILY_SCHEMA_VERSION && rawFontFamily == 3) {
     s.fontFamily = CrossPointSettings::LEXEND;
-    if (needsResave) *needsResave = true;
-  } else if (rawFontFamily == 2) {
-    s.fontFamily = CrossPointSettings::BOOKERLY;
     if (needsResave) *needsResave = true;
   } else if (rawFontFamily >= static_cast<uint8_t>(CrossPointSettings::FONT_FAMILY_COUNT)) {
     s.fontFamily = CrossPointSettings::BOOKERLY;
     if (needsResave) *needsResave = true;
+  } else {
+    s.fontFamily = rawFontFamily;
   }
 
   using S = CrossPointSettings;

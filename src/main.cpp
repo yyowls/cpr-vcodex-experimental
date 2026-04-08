@@ -73,20 +73,24 @@ EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
 
-// Lexend adapted from crosspet. To keep flash usage under control in this fork,
-// the bundled Lexend family uses the regular face for bold/italic fallbacks.
+// Lexend adapted from crosspet. No Italic TTF is bundled, so italic falls
+// back to regular and bolditalic falls back to bold.
 EpdFont lexend12RegularFont(&lexend_12_regular);
-EpdFontFamily lexend12FontFamily(&lexend12RegularFont, &lexend12RegularFont, &lexend12RegularFont,
-                                 &lexend12RegularFont);
+EpdFont lexend12BoldFont(&lexend_12_bold);
+EpdFontFamily lexend12FontFamily(&lexend12RegularFont, &lexend12BoldFont, &lexend12RegularFont,
+                                 &lexend12BoldFont);
 EpdFont lexend14RegularFont(&lexend_14_regular);
-EpdFontFamily lexend14FontFamily(&lexend14RegularFont, &lexend14RegularFont, &lexend14RegularFont,
-                                 &lexend14RegularFont);
+EpdFont lexend14BoldFont(&lexend_14_bold);
+EpdFontFamily lexend14FontFamily(&lexend14RegularFont, &lexend14BoldFont, &lexend14RegularFont,
+                                 &lexend14BoldFont);
 EpdFont lexend16RegularFont(&lexend_16_regular);
-EpdFontFamily lexend16FontFamily(&lexend16RegularFont, &lexend16RegularFont, &lexend16RegularFont,
-                                 &lexend16RegularFont);
+EpdFont lexend16BoldFont(&lexend_16_bold);
+EpdFontFamily lexend16FontFamily(&lexend16RegularFont, &lexend16BoldFont, &lexend16RegularFont,
+                                 &lexend16BoldFont);
 EpdFont lexend18RegularFont(&lexend_18_regular);
-EpdFontFamily lexend18FontFamily(&lexend18RegularFont, &lexend18RegularFont, &lexend18RegularFont,
-                                 &lexend18RegularFont);
+EpdFont lexend18BoldFont(&lexend_18_bold);
+EpdFontFamily lexend18FontFamily(&lexend18RegularFont, &lexend18BoldFont, &lexend18RegularFont,
+                                 &lexend18BoldFont);
 
 EpdFont notosans10RegularFont(&notosans_10_regular);
 EpdFontFamily notosans10FontFamily(&notosans10RegularFont, &notosans10RegularFont, &notosans10RegularFont,

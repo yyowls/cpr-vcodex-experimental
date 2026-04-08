@@ -20,9 +20,13 @@
 #include <builtinFonts/bookerly_18_bolditalic.h>
 #include <builtinFonts/bookerly_18_italic.h>
 #include <builtinFonts/bookerly_18_regular.h>
+#include <builtinFonts/lexend_12_bold.h>
 #include <builtinFonts/lexend_12_regular.h>
+#include <builtinFonts/lexend_14_bold.h>
 #include <builtinFonts/lexend_14_regular.h>
+#include <builtinFonts/lexend_16_bold.h>
 #include <builtinFonts/lexend_16_regular.h>
+#include <builtinFonts/lexend_18_bold.h>
 #include <builtinFonts/lexend_18_regular.h>
 #include <builtinFonts/notosans_8_regular.h>
 #include <builtinFonts/notosans_10_regular.h>
