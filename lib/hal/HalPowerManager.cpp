@@ -61,7 +61,7 @@ void HalPowerManager::setPowerSaving(bool enabled) {
 void HalPowerManager::startDeepSleep(HalGPIO& gpio) const {
   // Ensure that the power button has been released to avoid immediately turning back on if you're holding it
   while (gpio.isPressed(HalGPIO::BTN_POWER)) {
-    delay(50);
+    delay(10);
     gpio.update();
   }
   constexpr gpio_num_t GPIO_SPIWP = GPIO_NUM_13;

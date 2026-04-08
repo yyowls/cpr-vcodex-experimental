@@ -2,13 +2,63 @@
 
 #include <ArduinoJson.h>
 #include <Logging.h>
+#include <cctype>
 
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_wifi.h"
 
 namespace {
-constexpr char latestReleaseUrl[] = "https://api.github.com/repos/crosspoint-reader/crosspoint-reader/releases/latest";
+constexpr char latestReleaseUrl[] = "https://api.github.com/repos/franssjz/cpr-vcodex/releases/latest";
+
+struct ParsedVersion {
+  int parts[4] = {0, 0, 0, 0};
+  bool parsed = false;
+  bool isRc = false;
+};
+
+const char* currentVersionString() {
+#ifdef VCODEX_VERSION
+  return VCODEX_VERSION;
+#else
+  return CROSSPOINT_VERSION;
+#endif
+}
+
+ParsedVersion parseVersion(const char* version) {
+  ParsedVersion parsedVersion;
+  if (!version) {
+    return parsedVersion;
+  }
+
+  const char* cursor = version;
+  while (*cursor && !std::isdigit(static_cast<unsigned char>(*cursor))) {
+    ++cursor;
+  }
+
+  for (int index = 0; index < 4 && *cursor; ++index) {
+    if (!std::isdigit(static_cast<unsigned char>(*cursor))) {
+      break;
+    }
+
+    int value = 0;
+    while (std::isdigit(static_cast<unsigned char>(*cursor))) {
+      value = value * 10 + (*cursor - '0');
+      ++cursor;
+    }
+
+    parsedVersion.parts[index] = value;
+    parsedVersion.parsed = true;
+
+    if (*cursor != '.') {
+      break;
+    }
+    ++cursor;
+  }
+
+  parsedVersion.isRc = strstr(version, "-rc") != nullptr;
+  return parsedVersion;
+}
 
 /* This is buffer and size holder to keep upcoming data from latestReleaseUrl */
 char* local_buf;
@@ -64,6 +114,14 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   JsonDocument filter;
   esp_err_t esp_err;
   JsonDocument doc;
+
+  updateAvailable = false;
+  latestVersion.clear();
+  otaUrl.clear();
+  otaSize = 0;
+  processedSize = 0;
+  totalSize = 0;
+  render = false;
 
   esp_http_client_config_t client_config = {
       .url = latestReleaseUrl,
@@ -156,43 +214,24 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
 }
 
 bool OtaUpdater::isUpdateNewer() const {
-  if (!updateAvailable || latestVersion.empty() || latestVersion == CROSSPOINT_VERSION) {
+  if (!updateAvailable || latestVersion.empty()) {
     return false;
   }
 
-  int currentMajor, currentMinor, currentPatch;
-  int latestMajor, latestMinor, latestPatch;
+  const auto currentVersion = parseVersion(currentVersionString());
+  const auto latest = parseVersion(latestVersion.c_str());
+  if (!currentVersion.parsed || !latest.parsed) {
+    return false;
+  }
 
-  const auto currentVersion = CROSSPOINT_VERSION;
+  for (int index = 0; index < 4; ++index) {
+    if (latest.parts[index] != currentVersion.parts[index]) {
+      return latest.parts[index] > currentVersion.parts[index];
+    }
+  }
 
-  // semantic version check (only match on 3 segments)
-  sscanf(latestVersion.c_str(), "%d.%d.%d", &latestMajor, &latestMinor, &latestPatch);
-  sscanf(currentVersion, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch);
-
-  /*
-   * Compare major versions.
-   * If they differ, return true if latest major version greater than current major version
-   * otherwise return false.
-   */
-  if (latestMajor != currentMajor) return latestMajor > currentMajor;
-
-  /*
-   * Compare minor versions.
-   * If they differ, return true if latest minor version greater than current minor version
-   * otherwise return false.
-   */
-  if (latestMinor != currentMinor) return latestMinor > currentMinor;
-
-  /*
-   * Check patch versions.
-   */
-  if (latestPatch != currentPatch) return latestPatch > currentPatch;
-
-  // If we reach here, it means all segments are equal.
-  // One final check, if we're on an RC build (contains "-rc"), we should consider the latest version as newer even if
-  // the segments are equal, since RC builds are pre-release versions.
-  if (strstr(currentVersion, "-rc") != nullptr) {
-    return true;
+  if (currentVersion.isRc != latest.isRc) {
+    return !latest.isRc && currentVersion.isRc;
   }
 
   return false;

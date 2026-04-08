@@ -151,10 +151,16 @@ void waitForPowerRelease() {
 // Enter deep sleep mode
 void enterDeepSleep() {
   HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
-  APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
-  APP_STATE.saveToFile();
+  const bool lastSleepFromReader = activityManager.isReaderActivity();
+  const bool needsStateSave = APP_STATE.lastSleepFromReader != lastSleepFromReader;
+  APP_STATE.lastSleepFromReader = lastSleepFromReader;
 
+  // Render the sleep screen first so the device feels locked immediately.
   activityManager.goToSleep();
+
+  if (needsStateSave) {
+    APP_STATE.saveToFile();
+  }
 
   display.deepSleep();
   LOG_DBG("MAIN", "Entering deep sleep");
@@ -207,12 +213,6 @@ void setup() {
   const auto wakeupReason = gpio.getWakeupReason();
   powerManager.begin();
 
-  // A charger-induced cold boot should go back to sleep immediately instead of
-  // paying the normal boot cost first.
-  if (wakeupReason == HalGPIO::WakeupReason::AfterUSBPower) {
-    powerManager.startDeepSleep(gpio);
-  }
-
 #ifdef ENABLE_SERIAL_LOG
   // Only wait briefly for serial on debug builds.
   if (gpio.isUsbConnected()) {
@@ -254,9 +254,9 @@ void setup() {
                                    SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP);
       break;
     case HalGPIO::WakeupReason::AfterUSBPower:
-      // If USB power caused a cold boot, go back to sleep
-      LOG_DBG("MAIN", "Wakeup reason: After USB Power");
-      powerManager.startDeepSleep(gpio);
+      LOG_DBG("MAIN", "Wakeup reason: After USB Power, verifying power button");
+      gpio.verifyPowerButtonWakeup(SETTINGS.getPowerButtonDuration(),
+                                   SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP);
       break;
     case HalGPIO::WakeupReason::AfterFlash:
       // After flashing, just proceed to boot
