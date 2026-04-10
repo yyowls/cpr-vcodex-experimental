@@ -295,7 +295,7 @@ void SyncDayActivity::syncTime() {
   const uint32_t currentValidTimestamp = TimeUtils::getCurrentValidTimestamp();
   const bool effectiveSuccess = ntpSuccess || (!hadValidTimeBefore && currentValidTimestamp > 0);
   if (currentValidTimestamp > 0) {
-    APP_STATE.lastKnownValidTimestamp = std::max(APP_STATE.lastKnownValidTimestamp, currentValidTimestamp);
+    APP_STATE.registerValidTimeSync(currentValidTimestamp);
     APP_STATE.saveToFile();
   }
   syncing = false;

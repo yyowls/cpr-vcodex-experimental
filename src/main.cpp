@@ -239,7 +239,8 @@ void setup() {
 
   LOG_INF("MAIN", "Hardware detect: %s", gpio.deviceIsX3() ? "X3" : "X4");
 
-  switch (gpio.getWakeupReason()) {
+  const auto wakeupReason = gpio.getWakeupReason();
+  switch (wakeupReason) {
     case HalGPIO::WakeupReason::PowerButton:
       LOG_DBG("MAIN", "Verifying power button press duration");
       gpio.verifyPowerButtonWakeup(SETTINGS.getPowerButtonDuration(),
@@ -268,6 +269,10 @@ void setup() {
   READING_STATS.loadFromFile();
   ACHIEVEMENTS.loadFromFile();
 
+  const bool countUsefulStart =
+      wakeupReason != HalGPIO::WakeupReason::AfterUSBPower && wakeupReason != HalGPIO::WakeupReason::AfterFlash;
+  const uint8_t syncDayReminderThreshold = SETTINGS.getSyncDayReminderStartThreshold();
+
   // Boot to home screen if no book is open, last sleep was not from reader, back button is held, or reader activity
   // crashed (indicated by readerActivityLoadCount > 0)
   const bool bootToHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
@@ -275,12 +280,19 @@ void setup() {
                           APP_STATE.readerActivityLoadCount > 0;
 
   if (bootToHome) {
+    if (countUsefulStart) {
+      APP_STATE.recordUsefulStart(syncDayReminderThreshold);
+      APP_STATE.saveToFile();
+    }
     activityManager.goHome();
   } else {
     // Clear app state to avoid getting into a boot loop if the epub doesn't load
     const auto path = APP_STATE.openEpubPath;
     APP_STATE.openEpubPath = "";
     APP_STATE.readerActivityLoadCount++;
+    if (countUsefulStart) {
+      APP_STATE.recordUsefulStart(syncDayReminderThreshold);
+    }
     APP_STATE.saveToFile();
     activityManager.goToReader(path);
   }

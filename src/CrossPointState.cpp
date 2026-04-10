@@ -10,7 +10,7 @@
 #include "util/TimeUtils.h"
 
 namespace {
-constexpr uint8_t STATE_FILE_VERSION = 5;
+constexpr uint8_t STATE_FILE_VERSION = 6;
 constexpr char STATE_FILE_BIN[] = "/.crosspoint/state.bin";
 constexpr char STATE_FILE_JSON[] = "/.crosspoint/state.json";
 constexpr char STATE_FILE_BAK[] = "/.crosspoint/state.bin.bak";
@@ -50,6 +50,36 @@ bool CrossPointState::loadFromFile() {
   return false;
 }
 
+void CrossPointState::recordUsefulStart(const uint8_t reminderThreshold) {
+  if (reminderThreshold == 0 || syncDayReminderLatched) {
+    return;
+  }
+
+  if (syncDayReminderStartCount < UINT8_MAX) {
+    syncDayReminderStartCount++;
+  }
+
+  if (syncDayReminderStartCount >= reminderThreshold) {
+    syncDayReminderLatched = true;
+  }
+}
+
+void CrossPointState::registerValidTimeSync(const uint32_t validTimestamp) {
+  if (validTimestamp > 0) {
+    lastKnownValidTimestamp = std::max(lastKnownValidTimestamp, validTimestamp);
+    syncDayReminderStartCount = 0;
+    syncDayReminderLatched = false;
+  }
+}
+
+bool CrossPointState::shouldShowSyncDayReminder(const uint8_t reminderThreshold) const {
+  if (reminderThreshold == 0) {
+    return false;
+  }
+
+  return syncDayReminderLatched || syncDayReminderStartCount >= reminderThreshold;
+}
+
 bool CrossPointState::loadFromBinaryFile() {
   FsFile inputFile;
   if (!Storage.openFileForRead("CPS", STATE_FILE_BIN, inputFile)) {
@@ -85,6 +115,14 @@ bool CrossPointState::loadFromBinaryFile() {
     serialization::readPod(inputFile, lastKnownValidTimestamp);
   } else {
     lastKnownValidTimestamp = 0;
+  }
+
+  if (version >= 6) {
+    serialization::readPod(inputFile, syncDayReminderStartCount);
+    serialization::readPod(inputFile, syncDayReminderLatched);
+  } else {
+    syncDayReminderStartCount = 0;
+    syncDayReminderLatched = false;
   }
 
   inputFile.close();

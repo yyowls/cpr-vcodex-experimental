@@ -116,6 +116,10 @@ const std::vector<SettingInfo>& getPersistedSettingsList() {
                           StrId::STR_CAT_DISPLAY),
 
       SettingInfo::Toggle(StrId::STR_DISPLAY_DAY, &CrossPointSettings::displayDay, "displayDay", StrId::STR_APPS),
+      SettingInfo::Enum(StrId::STR_SYNC_DAY_REMINDER_EVERY, &CrossPointSettings::syncDayReminderStarts,
+                        {StrId::STR_STATE_OFF, StrId::STR_NUM_10, StrId::STR_NUM_20, StrId::STR_NUM_30,
+                         StrId::STR_NUM_40, StrId::STR_NUM_50, StrId::STR_NUM_60},
+                        "syncDayReminderStarts", StrId::STR_APPS),
       SettingInfo::Enum(StrId::STR_DATE_FORMAT, &CrossPointSettings::dateFormat,
                         {StrId::STR_DATE_FORMAT_DD_MM_YYYY, StrId::STR_DATE_FORMAT_MM_DD_YYYY,
                          StrId::STR_DATE_FORMAT_YYYY_MM_DD},
@@ -295,6 +299,8 @@ bool JsonSettingsIO::saveState(const CrossPointState& s, const char* path) {
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
   doc["lastKnownValidTimestamp"] = s.lastKnownValidTimestamp;
+  doc["syncDayReminderStartCount"] = s.syncDayReminderStartCount;
+  doc["syncDayReminderLatched"] = s.syncDayReminderLatched;
 
   return saveJsonDocumentToFile("CPS", path, doc);
 }
@@ -312,6 +318,8 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
   s.lastKnownValidTimestamp = doc["lastKnownValidTimestamp"] | static_cast<uint32_t>(0);
+  s.syncDayReminderStartCount = doc["syncDayReminderStartCount"] | (uint8_t)0;
+  s.syncDayReminderLatched = doc["syncDayReminderLatched"] | false;
   return true;
 }
 

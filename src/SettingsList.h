@@ -42,6 +42,10 @@ inline const std::vector<SettingInfo>& getSettingsList() {
 
       // --- Apps ---
       SettingInfo::Toggle(StrId::STR_DISPLAY_DAY, &CrossPointSettings::displayDay, "displayDay", StrId::STR_APPS),
+      SettingInfo::Enum(StrId::STR_SYNC_DAY_REMINDER_EVERY, &CrossPointSettings::syncDayReminderStarts,
+                        {StrId::STR_STATE_OFF, StrId::STR_NUM_10, StrId::STR_NUM_20, StrId::STR_NUM_30,
+                         StrId::STR_NUM_40, StrId::STR_NUM_50, StrId::STR_NUM_60},
+                        "syncDayReminderStarts", StrId::STR_APPS),
       SettingInfo::Enum(StrId::STR_DATE_FORMAT, &CrossPointSettings::dateFormat,
                         {StrId::STR_DATE_FORMAT_DD_MM_YYYY, StrId::STR_DATE_FORMAT_MM_DD_YYYY,
                          StrId::STR_DATE_FORMAT_YYYY_MM_DD},

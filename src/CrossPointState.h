@@ -13,6 +13,8 @@ class CrossPointState {
   uint8_t readerActivityLoadCount = 0;
   bool lastSleepFromReader = false;
   uint32_t lastKnownValidTimestamp = 0;
+  uint8_t syncDayReminderStartCount = 0;
+  bool syncDayReminderLatched = false;
   ~CrossPointState() = default;
 
   // Get singleton instance
@@ -21,6 +23,9 @@ class CrossPointState {
   bool saveToFile();
 
   bool loadFromFile();
+  void recordUsefulStart(uint8_t reminderThreshold);
+  void registerValidTimeSync(uint32_t validTimestamp);
+  bool shouldShowSyncDayReminder(uint8_t reminderThreshold) const;
 
  private:
   bool loadFromBinaryFile();

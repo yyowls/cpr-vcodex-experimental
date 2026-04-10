@@ -302,6 +302,26 @@ uint64_t CrossPointSettings::getDailyGoalMs() const {
   }
 }
 
+uint8_t CrossPointSettings::getSyncDayReminderStartThreshold() const {
+  switch (syncDayReminderStarts) {
+    case SYNC_DAY_REMINDER_10:
+      return 10;
+    case SYNC_DAY_REMINDER_20:
+      return 20;
+    case SYNC_DAY_REMINDER_30:
+      return 30;
+    case SYNC_DAY_REMINDER_40:
+      return 40;
+    case SYNC_DAY_REMINDER_50:
+      return 50;
+    case SYNC_DAY_REMINDER_60:
+      return 60;
+    case SYNC_DAY_REMINDER_OFF:
+    default:
+      return 0;
+  }
+}
+
 int CrossPointSettings::getRefreshFrequency() const {
   switch (refreshFrequency) {
     case REFRESH_1:

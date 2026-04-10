@@ -45,24 +45,8 @@ struct HomeShortcutEntry {
   bool isOpds = false;
 };
 
-void drawHomeDate(const GfxRenderer& renderer, const ThemeMetrics& metrics, const int pageWidth, const std::string& dateText) {
-  if (dateText.empty()) {
-    return;
-  }
-
-  const bool showBatteryPercentage =
-      SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
-  const int batteryX = pageWidth - 12 - metrics.batteryWidth;
-  int rightEdge = batteryX - 8;
-
-  if (showBatteryPercentage) {
-    const std::string batteryText = std::to_string(powerManager.getBatteryPercentage()) + "%";
-    rightEdge -= renderer.getTextWidth(SMALL_FONT_ID, batteryText.c_str()) + 4;
-  }
-
-  const int dateWidth = renderer.getTextWidth(SMALL_FONT_ID, dateText.c_str());
-  const int dateX = std::max(metrics.contentSidePadding, rightEdge - dateWidth);
-  renderer.drawText(SMALL_FONT_ID, dateX, metrics.topPadding + 5, dateText.c_str());
+void drawHomeDate(GfxRenderer& renderer, const ThemeMetrics&, const int, const std::string& dateText) {
+  HeaderDateUtils::drawTopLine(renderer, dateText);
 }
 
 std::string formatDurationHmCompact(const uint64_t totalMs) {

@@ -156,6 +156,16 @@ class CrossPointSettings {
     DAILY_GOAL_60_MIN = 3,
     DAILY_GOAL_TARGET_COUNT
   };
+  enum SYNC_DAY_REMINDER_STARTS {
+    SYNC_DAY_REMINDER_OFF = 0,
+    SYNC_DAY_REMINDER_10 = 1,
+    SYNC_DAY_REMINDER_20 = 2,
+    SYNC_DAY_REMINDER_30 = 3,
+    SYNC_DAY_REMINDER_40 = 4,
+    SYNC_DAY_REMINDER_50 = 5,
+    SYNC_DAY_REMINDER_60 = 6,
+    SYNC_DAY_REMINDER_STARTS_COUNT
+  };
   enum SHORTCUT_LOCATION {
     SHORTCUT_HOME = 0,
     SHORTCUT_APPS = 1,
@@ -227,6 +237,7 @@ class CrossPointSettings {
   // Home/apps helpers
   uint8_t displayDay = 1;
   uint8_t autoSyncDay = 1;
+  uint8_t syncDayReminderStarts = SYNC_DAY_REMINDER_OFF;
   uint8_t timeZonePreset = 0;
   uint8_t dateFormat = DATE_DD_MM_YYYY;
   uint8_t dailyGoalTarget = DAILY_GOAL_30_MIN;
@@ -318,6 +329,7 @@ class CrossPointSettings {
   uint64_t getDailyGoalMs() const;
   int getRefreshFrequency() const;
   bool getForcedReaderRefreshMode(HalDisplay::RefreshMode& mode) const;
+  uint8_t getSyncDayReminderStartThreshold() const;
 };
 
 // Helper macro to access settings
