@@ -116,7 +116,6 @@ const std::vector<SettingInfo>& getPersistedSettingsList() {
                           StrId::STR_CAT_DISPLAY),
 
       SettingInfo::Toggle(StrId::STR_DISPLAY_DAY, &CrossPointSettings::displayDay, "displayDay", StrId::STR_APPS),
-      SettingInfo::Toggle(StrId::STR_AUTO_SYNC_DAY, &CrossPointSettings::autoSyncDay, "autoSyncDay", StrId::STR_APPS),
       SettingInfo::Enum(StrId::STR_DATE_FORMAT, &CrossPointSettings::dateFormat,
                         {StrId::STR_DATE_FORMAT_DD_MM_YYYY, StrId::STR_DATE_FORMAT_MM_DD_YYYY,
                          StrId::STR_DATE_FORMAT_YYYY_MM_DD},

@@ -259,14 +259,12 @@ void WifiSelectionActivity::checkConnectionStatus() {
       WIFI_STORE.setLastConnectedSsid(selectedSSID);
     }
 
-    if (SETTINGS.autoSyncDay) {
-      LOG_DBG("WIFI", "Auto-syncing date/time after Wi-Fi connection");
-      TimeUtils::syncTimeWithNtp();
-      const uint32_t currentValidTimestamp = TimeUtils::getCurrentValidTimestamp();
-      if (currentValidTimestamp > 0) {
-        APP_STATE.lastKnownValidTimestamp = std::max(APP_STATE.lastKnownValidTimestamp, currentValidTimestamp);
-        APP_STATE.saveToFile();
-      }
+    LOG_DBG("WIFI", "Auto-syncing date/time after Wi-Fi connection");
+    TimeUtils::syncTimeWithNtp();
+    const uint32_t currentValidTimestamp = TimeUtils::getCurrentValidTimestamp();
+    if (currentValidTimestamp > 0) {
+      APP_STATE.lastKnownValidTimestamp = std::max(APP_STATE.lastKnownValidTimestamp, currentValidTimestamp);
+      APP_STATE.saveToFile();
     }
 
     // If we entered a new password, ask if user wants to save it
