@@ -8,6 +8,18 @@
 
 #include "FontCacheManager.h"
 
+namespace {
+
+std::vector<uint8_t> invertMonochromeBitmap(const uint8_t* bitmap, size_t size) {
+  std::vector<uint8_t> inverted(size);
+  for (size_t i = 0; i < size; ++i) {
+    inverted[i] = static_cast<uint8_t>(~bitmap[i]);
+  }
+  return inverted;
+}
+
+}  // namespace
+
 const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const {
   if (fontData->groups != nullptr) {
     auto* fd = fontCacheManager_ ? fontCacheManager_->getDecompressor() : nullptr;
@@ -598,8 +610,16 @@ void GfxRenderer::drawImage(const uint8_t bitmap[], const int x, const int y, co
 }
 
 void GfxRenderer::drawIcon(const uint8_t bitmap[], const int x, const int y, const int width, const int height) const {
-  display.drawImageTransparent(bitmap, y, getScreenWidth() - width - x, height, width, false,
-                               darkMode && renderMode == BW);
+  const int destX = y;
+  const int destY = getScreenWidth() - width - x;
+  if (!(darkMode && renderMode == BW)) {
+    display.drawImageTransparent(bitmap, destX, destY, height, width);
+    return;
+  }
+
+  const size_t imageWidthBytes = (static_cast<size_t>(height) + 7U) / 8U;
+  auto invertedBitmap = invertMonochromeBitmap(bitmap, imageWidthBytes * width);
+  display.drawImage(invertedBitmap.data(), destX, destY, height, width);
 }
 
 void GfxRenderer::drawBitmap(const Bitmap& bitmap, const int x, const int y, const int maxWidth, const int maxHeight,
@@ -864,7 +884,7 @@ void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode) const
     effectiveRefreshMode = HalDisplay::FULL_REFRESH;
     nextRefreshFull = false;
   }
-  display.displayBuffer(effectiveRefreshMode, fadingFix, false);
+  display.displayBuffer(effectiveRefreshMode, fadingFix);
 }
 
 std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth,
@@ -1131,9 +1151,9 @@ size_t GfxRenderer::getBufferSize() const { return frameBufferSize; }
 // unused
 // void GfxRenderer::grayscaleRevert() const { display.grayscaleRevert(); }
 
-void GfxRenderer::copyGrayscaleLsbBuffers() const { display.copyGrayscaleLsbBuffers(frameBuffer, false); }
+void GfxRenderer::copyGrayscaleLsbBuffers() const { display.copyGrayscaleLsbBuffers(frameBuffer); }
 
-void GfxRenderer::copyGrayscaleMsbBuffers() const { display.copyGrayscaleMsbBuffers(frameBuffer, false); }
+void GfxRenderer::copyGrayscaleMsbBuffers() const { display.copyGrayscaleMsbBuffers(frameBuffer); }
 
 void GfxRenderer::displayGrayBuffer() const { display.displayGrayBuffer(fadingFix); }
 
@@ -1208,7 +1228,7 @@ void GfxRenderer::restoreBwBuffer() {
     memcpy(frameBuffer + offset, bwBufferChunks[i], chunkSize);
   }
 
-  display.cleanupGrayscaleBuffers(frameBuffer, false);
+  display.cleanupGrayscaleBuffers(frameBuffer);
 
   freeBwBufferChunks();
   LOG_DBG("GFX", "Restored and freed BW buffer chunks");
@@ -1220,7 +1240,7 @@ void GfxRenderer::restoreBwBuffer() {
  */
 void GfxRenderer::cleanupGrayscaleWithFrameBuffer() const {
   if (frameBuffer) {
-    display.cleanupGrayscaleBuffers(frameBuffer, false);
+    display.cleanupGrayscaleBuffers(frameBuffer);
   }
 }
 
