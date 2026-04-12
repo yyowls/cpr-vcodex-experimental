@@ -3,7 +3,7 @@
  * name: lexend_12_regular
  * size: 12
  * mode: 2-bit  compressed: true
- * Command used: z:\Dev\Personal\New folder\crosspoint-reader-codex\lib\EpdFont\scripts\fontconvert.py lexend_12_regular 12 z:\Dev\Personal\New folder\crosspoint-reader-codex\lib\EpdFont\builtinFonts\source\Lexend\Lexend-Regular.ttf --2bit --compress
+ * Command used: fontconvert.py lexend_12_regular 12 ../builtinFonts/source/Lexend/Lexend-Regular.ttf --2bit --compress
  */
 #pragma once
 #include "EpdFontData.h"

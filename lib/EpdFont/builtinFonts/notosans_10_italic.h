@@ -3,7 +3,7 @@
  * name: notosans_10_italic
  * size: 10
  * mode: 2-bit  compressed: true
- * Command used: fontconvert.py notosans_10_italic 10 ..\builtinFonts\source\NotoSans\NotoSans-Italic.ttf --2bit --compress
+ * Command used: fontconvert.py notosans_10_italic 10 ../builtinFonts/source/NotoSans/NotoSans-Italic.ttf --2bit --compress
  */
 #pragma once
 #include "EpdFontData.h"
@@ -3584,13 +3584,13 @@ static const EpdFontData notosans_10_italic = {
     notosans_10_italicGroups,
     13,
     nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    0,
-    0,
-    0,
-    0,
+    notosans_10_italicKernLeftClasses,
+    notosans_10_italicKernRightClasses,
+    notosans_10_italicKernMatrix,
+    471,
+    471,
+    90,
+    83,
     notosans_10_italicLigaturePairs,
     5,
 };

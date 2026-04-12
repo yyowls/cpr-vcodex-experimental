@@ -3,7 +3,7 @@
  * name: bookerly_10_regular
  * size: 10
  * mode: 2-bit  compressed: true
- * Command used: fontconvert.py bookerly_10_regular 10 ..\builtinFonts\source\Bookerly\Bookerly-Regular.ttf --2bit --compress
+ * Command used: fontconvert.py bookerly_10_regular 10 ../builtinFonts/source/Bookerly/Bookerly-Regular.ttf --2bit --compress
  */
 #pragma once
 #include "EpdFontData.h"

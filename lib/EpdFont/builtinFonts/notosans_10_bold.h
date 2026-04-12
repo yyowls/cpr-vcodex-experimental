@@ -3,7 +3,7 @@
  * name: notosans_10_bold
  * size: 10
  * mode: 2-bit  compressed: true
- * Command used: fontconvert.py notosans_10_bold 10 ..\builtinFonts\source\NotoSans\NotoSans-Bold.ttf --2bit --compress
+ * Command used: fontconvert.py notosans_10_bold 10 ../builtinFonts/source/NotoSans/NotoSans-Bold.ttf --2bit --compress
  */
 #pragma once
 #include "EpdFontData.h"
@@ -3543,13 +3543,13 @@ static const EpdFontData notosans_10_bold = {
     notosans_10_boldGroups,
     13,
     nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    0,
-    0,
-    0,
-    0,
+    notosans_10_boldKernLeftClasses,
+    notosans_10_boldKernRightClasses,
+    notosans_10_boldKernMatrix,
+    478,
+    474,
+    88,
+    76,
     notosans_10_boldLigaturePairs,
     5,
 };
