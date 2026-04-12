@@ -229,7 +229,12 @@ void BaseTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
                          const std::function<std::string(int index)>& rowTitle,
                          const std::function<std::string(int index)>& rowSubtitle,
                          const std::function<UIIcon(int index)>& rowIcon,
-                         const std::function<std::string(int index)>& rowValue, bool highlightValue) const {
+                         const std::function<std::string(int index)>& rowValue, bool highlightValue,
+                         const std::function<bool(int index)>& rowCompleted) const {
+  (void)rowIcon;
+  (void)highlightValue;
+  (void)rowCompleted;
+
   int rowHeight =
       (rowSubtitle != nullptr) ? BaseMetrics::values.listWithSubtitleRowHeight : BaseMetrics::values.listRowHeight;
   int pageItems = rect.height / rowHeight;
@@ -295,7 +300,8 @@ void BaseTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, 
   }
 }
 
-void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle) const {
+void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle,
+                           const char* titleDetail) const {
   // Hide last battery draw
   constexpr int maxBatteryWidth = 80;
   renderer.fillRect(rect.x + rect.width - maxBatteryWidth, rect.y + 5, maxBatteryWidth,
@@ -311,10 +317,38 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
 
   if (title) {
     int padding = rect.width - batteryX + BaseMetrics::values.batteryWidth;
-    auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title,
-                                                 rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2,
-                                                 EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+    const int inlineAreaWidth = rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2;
+    const int inlineAreaX = rect.x + padding + BaseMetrics::values.contentSidePadding;
+
+    if (titleDetail && titleDetail[0] != '\0') {
+      const int titleY = rect.y + 5;
+      const int detailY =
+          titleY + std::max(0, (renderer.getTextHeight(UI_12_FONT_ID) - renderer.getTextHeight(SMALL_FONT_ID)) / 2);
+      constexpr int inlineGap = 6;
+
+      auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title, inlineAreaWidth, EpdFontFamily::BOLD);
+      int titleWidth = renderer.getTextWidth(UI_12_FONT_ID, truncatedTitle.c_str(), EpdFontFamily::BOLD);
+      int remainingWidth = std::max(0, inlineAreaWidth - titleWidth - inlineGap);
+
+      std::string truncatedDetail;
+      int detailWidth = 0;
+      if (remainingWidth > 12) {
+        truncatedDetail =
+            renderer.truncatedText(SMALL_FONT_ID, titleDetail, remainingWidth, EpdFontFamily::REGULAR);
+        detailWidth = renderer.getTextWidth(SMALL_FONT_ID, truncatedDetail.c_str(), EpdFontFamily::REGULAR);
+      }
+
+      const int blockWidth = titleWidth + (truncatedDetail.empty() ? 0 : inlineGap + detailWidth);
+      const int titleX = inlineAreaX + std::max(0, (inlineAreaWidth - blockWidth) / 2);
+      renderer.drawText(UI_12_FONT_ID, titleX, titleY, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+      if (!truncatedDetail.empty()) {
+        renderer.drawText(SMALL_FONT_ID, titleX + titleWidth + inlineGap, detailY, truncatedDetail.c_str(), true,
+                          EpdFontFamily::REGULAR);
+      }
+    } else {
+      auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title, inlineAreaWidth, EpdFontFamily::BOLD);
+      renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+    }
   }
 
   if (subtitle) {
@@ -354,27 +388,62 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
   constexpr int underlineGap = 4;     // Gap between text and underline
 
   const int lineHeight = renderer.getLineHeight(UI_12_FONT_ID);
+  const int availableWidth = std::max(0, rect.width - BaseMetrics::values.contentSidePadding * 2);
 
-  int currentX = rect.x + BaseMetrics::values.contentSidePadding;
+  int totalWidth = 0;
+  for (size_t i = 0; i < tabs.size(); ++i) {
+    totalWidth += renderer.getTextWidth(UI_12_FONT_ID, tabs[i].label,
+                                        tabs[i].selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+    if (i + 1 < tabs.size()) {
+      totalWidth += BaseMetrics::values.tabSpacing;
+    }
+  }
 
-  for (const auto& tab : tabs) {
-    const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+  const bool useCompactLayout = !tabs.empty() && totalWidth > availableWidth;
+  if (!useCompactLayout) {
+    int currentX = rect.x + BaseMetrics::values.contentSidePadding;
 
-    // Draw underline for selected tab
+    for (const auto& tab : tabs) {
+      const int textWidth = renderer.getTextWidth(
+          UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+
+      if (tab.selected) {
+        if (selected) {
+          renderer.fillRect(currentX - 3, rect.y, textWidth + 6, lineHeight + underlineGap);
+        } else {
+          renderer.fillRect(currentX, rect.y + lineHeight + underlineGap, textWidth, underlineHeight);
+        }
+      }
+
+      renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
+                        tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+
+      currentX += textWidth + BaseMetrics::values.tabSpacing;
+    }
+    return;
+  }
+
+  const int slotStartX = rect.x + BaseMetrics::values.contentSidePadding;
+  for (size_t i = 0; i < tabs.size(); ++i) {
+    const auto& tab = tabs[i];
+    const auto weight = tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR;
+    const int slotX = slotStartX + (availableWidth * static_cast<int>(i)) / static_cast<int>(tabs.size());
+    const int nextSlotX = slotStartX + (availableWidth * static_cast<int>(i + 1)) / static_cast<int>(tabs.size());
+    const int slotWidth = nextSlotX - slotX;
+    const int textMaxWidth = std::max(0, slotWidth - 8);
+    const std::string label = renderer.truncatedText(UI_12_FONT_ID, tab.label, textMaxWidth, weight);
+    const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, label.c_str(), weight);
+    const int textX = slotX + std::max(0, (slotWidth - textWidth) / 2);
+
     if (tab.selected) {
       if (selected) {
-        renderer.fillRect(currentX - 3, rect.y, textWidth + 6, lineHeight + underlineGap);
+        renderer.fillRect(slotX, rect.y, slotWidth, lineHeight + underlineGap);
       } else {
-        renderer.fillRect(currentX, rect.y + lineHeight + underlineGap, textWidth, underlineHeight);
+        renderer.fillRect(slotX + 2, rect.y + lineHeight + underlineGap, std::max(0, slotWidth - 4), underlineHeight);
       }
     }
 
-    // Draw tab label
-    renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
-                      tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
-
-    currentX += textWidth + BaseMetrics::values.tabSpacing;
+    renderer.drawText(UI_12_FONT_ID, textX, rect.y, label.c_str(), !(tab.selected && selected), weight);
   }
 }
 
