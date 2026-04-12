@@ -1,4 +1,9 @@
-
+Forked for experimental modifications for learning purposes, currently not intended for general use.
+Current modifications:
+  - Replaced boot logo with a stack of books
+To Do:
+  - Enable larger font size options for Bookerly
+-----
 <p align="center">
   <img src="./docs/images/logotext_by_Which-Estimate4566.svg" alt="cpr-vcodex logo" width="720" />
   <br />
