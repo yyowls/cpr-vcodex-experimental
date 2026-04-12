@@ -1,6 +1,8 @@
 Forked for experimental modifications for learning purposes, currently not intended for general use.
+
 Current modifications:
   - Replaced boot logo with a stack of books
+  - 
 To Do:
   - Enable larger font size options for Bookerly
 -----
