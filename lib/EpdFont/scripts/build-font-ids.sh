@@ -53,6 +53,24 @@ ruby -rdigest -e 'puts [
 ].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
 ))"
 
+echo "#define BOOKERLY_20_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./bookerly_20_regular.h",
+  "./bookerly_20_bold.h",
+  "./bookerly_20_bolditalic.h",
+  "./bookerly_20_italic.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))"
+
+echo "#define BOOKERLY_22_FONT_ID ($(
+ruby -rdigest -e 'puts [
+  "./bookerly_22_regular.h",
+  "./bookerly_22_bold.h",
+  "./bookerly_22_bolditalic.h",
+  "./bookerly_22_italic.h",
+].map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)'
+))
+
 echo "#define LEXEND_10_FONT_ID ($(
 ruby -rdigest -e 'puts [
   "./lexend_10_regular.h",
