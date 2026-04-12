@@ -17,3 +17,4 @@ build
 *.local*
 open-x4-sdk
 messy-notes/
+lib/EpdFont/scripts/fontconvert.py
