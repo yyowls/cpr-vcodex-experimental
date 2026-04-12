@@ -93,7 +93,20 @@ intervals = [
     # (0x30000, 0x3134F),
     # # Hiragana
     # (0x3040, 0x309F),
-    # # Katakana
+    # # Katakana/main.zip ; python_version >= "3.11"
+
+Next
+Requirements File Format
+Previous
+Build System Interface
+Copyright © The pip developers
+Made with Sphinx and @pradyunsg's Furo
+On this page
+
+        Overview
+        Examples
+
+
     # (0x30A0, 0x30FF),
     # # Katakana Phonetic Extensions
     # (0x31F0, 0x31FF),
