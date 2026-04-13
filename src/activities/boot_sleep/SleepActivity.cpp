@@ -38,8 +38,14 @@ void SleepActivity::onEnter() {
       renderCustomSleepScreen();
       break;
     case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER):
-    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
       renderCoverSleepScreen();
+      break;
+    case (CrossPointSettings::SLEEP_SCREEN_MODE::COVER_CUSTOM):
+      if (APP_STATE.lastSleepFromReader) {
+        renderCoverSleepScreen();
+      } else {
+        renderCustomSleepScreen();
+      }
       break;
     default:
       renderDefaultSleepScreen();
