@@ -3,7 +3,7 @@
  * name: lexend_10_bold
  * size: 10
  * mode: 2-bit  compressed: true
- * Command used: z:\Dev\Personal\New folder\crosspoint-reader-codex\lib\EpdFont\scripts\fontconvert.py lexend_10_bold 10 z:\Dev\Personal\New folder\crosspoint-reader-codex\lib\EpdFont\builtinFonts\source\Lexend\Lexend-Bold.ttf --2bit --compress
+ * Command used: fontconvert.py lexend_10_bold 10 ../builtinFonts/source/Lexend/Lexend-Bold.ttf --2bit --compress
  */
 #pragma once
 #include "EpdFontData.h"

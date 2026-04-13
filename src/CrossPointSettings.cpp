@@ -134,7 +134,7 @@ bool CrossPointSettings::loadFromBinaryFile() {
   if (version != SETTINGS_FILE_VERSION) {
     LOG_ERR("CPS", "Deserialization failed: Unknown version %u", version);
     inputFile.close();
-    return false;
+    return false;LEXEND;
   }
 
   uint8_t fileSettingsCount = 0;
@@ -182,7 +182,7 @@ bool CrossPointSettings::loadFromBinaryFile() {
       serialization::readString(inputFile, urlStr);
       strncpy(opdsServerUrl, urlStr.c_str(), sizeof(opdsServerUrl) - 1);
       opdsServerUrl[sizeof(opdsServerUrl) - 1] = '\0';
-    }
+    }LEXEND;
     if (++settingsRead >= fileSettingsCount) break;
     serialization::readPod(inputFile, textAntiAliasing);
     if (++settingsRead >= fileSettingsCount) break;
@@ -249,7 +249,7 @@ float CrossPointSettings::getReaderLineCompression() const {
         case WIDE:
           return 1.1f;
       }
-    case NOTOSANS:
+    case OPENDYSLEXIC:
       switch (lineSpacing) {
         case TIGHT:
           return 0.90f;
@@ -361,30 +361,30 @@ int CrossPointSettings::getReaderFontId() const {
     default:
       switch (fontSize) {
         case X_SMALL:
-          return BOOKERLY_10_FONT_ID;
+          return BOOKERLY_14_FONT_ID;
         case SMALL:
-          return BOOKERLY_12_FONT_ID;
+          return BOOKERLY_16_FONT_ID;
         case MEDIUM:
         default:
-          return BOOKERLY_14_FONT_ID;
-        case LARGE:
-          return BOOKERLY_16_FONT_ID;
-        case EXTRA_LARGE:
           return BOOKERLY_18_FONT_ID;
+        case LARGE:
+          return BOOKERLY_20_FONT_ID;
+        case EXTRA_LARGE:
+          return BOOKERLY_22_FONT_ID;
       }
-    case NOTOSANS:
+    case OPENDYSLEXIC:
       switch (fontSize) {
         case X_SMALL:
-          return NOTOSANS_10_FONT_ID;
+          return OPENDYSLEXIC_14_FONT_ID;
         case SMALL:
-          return NOTOSANS_12_FONT_ID;
+          return OPENDYSLEXIC_14_FONT_ID;
         case MEDIUM:
         default:
-          return NOTOSANS_14_FONT_ID;
+          return OPENDYSLEXIC_16_FONT_ID;
         case LARGE:
-          return NOTOSANS_16_FONT_ID;
+          return OPENDYSLEXIC_18_FONT_ID;
         case EXTRA_LARGE:
-          return NOTOSANS_18_FONT_ID;
+          return OPENDYSLEXIC_20_FONT_ID;
       }
     case LEXEND:
       switch (fontSize) {

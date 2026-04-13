@@ -154,7 +154,7 @@ const std::vector<SettingInfo>& getDeviceDisplaySettings() {
 const std::vector<SettingInfo>& getDeviceReaderSettings() {
   static const std::vector<SettingInfo> items = {
       SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
-                        {StrId::STR_BOOKERLY, StrId::STR_NOTO_SANS, StrId::STR_LEXEND}),
+                        {StrId::STR_BOOKERLY, StrId::STR_OPEN_DYSLEXIC, StrId::STR_LEXEND}),
       SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
                         {StrId::STR_X_SMALL, StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE,
                          StrId::STR_X_LARGE}),
