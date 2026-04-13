@@ -78,6 +78,18 @@ EpdFont bookerly18ItalicFont(&bookerly_18_italic);
 EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
+EpdFont bookerly20RegularFont(&bookerly_20_regular);
+EpdFont bookerly20BoldFont(&bookerly_20_bold);
+EpdFont bookerly20ItalicFont(&bookerly_20_italic);
+EpdFont bookerly20BoldItalicFont(&bookerly_20_bolditalic);
+EpdFontFamily bookerly20FontFamily(&bookerly20RegularFont, &bookerly20BoldFont, &bookerly20ItalicFont,
+                                   &bookerly20BoldItalicFont);
+EpdFont bookerly22RegularFont(&bookerly_22_regular);
+EpdFont bookerly22BoldFont(&bookerly_22_bold);
+EpdFont bookerly22ItalicFont(&bookerly_22_italic);
+EpdFont bookerly22BoldItalicFont(&bookerly_22_bolditalic);
+EpdFontFamily bookerly22FontFamily(&bookerly22RegularFont, &bookerly22BoldFont, &bookerly22ItalicFont,
+                                   &bookerly22BoldItalicFont);
 
 // Lexend adapted from crosspet. No Italic TTF is bundled, so italic falls
 // back to regular and bolditalic falls back to bold.
@@ -231,6 +243,8 @@ void setupDisplayAndFonts() {
   renderer.insertFont(BOOKERLY_12_FONT_ID, bookerly12FontFamily);
   renderer.insertFont(BOOKERLY_16_FONT_ID, bookerly16FontFamily);
   renderer.insertFont(BOOKERLY_18_FONT_ID, bookerly18FontFamily);
+  renderer.insertFont(BOOKERLY_20_FONT_ID, bookerly20FontFamily);
+  renderer.insertFont(BOOKERLY_22_FONT_ID, bookerly22FontFamily);
 
   renderer.insertFont(LEXEND_10_FONT_ID, lexend10FontFamily);
   renderer.insertFont(LEXEND_12_FONT_ID, lexend12FontFamily);

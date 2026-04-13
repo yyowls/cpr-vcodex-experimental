@@ -361,7 +361,7 @@ int CrossPointSettings::getReaderFontId() const {
     default:
       switch (fontSize) {
         case X_SMALL:
-          return BOOKERLY_10_FONT_ID;
+          return BOOKERLY_20_FONT_ID;
         case SMALL:
           return BOOKERLY_12_FONT_ID;
         case MEDIUM:

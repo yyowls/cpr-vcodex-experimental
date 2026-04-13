@@ -19,7 +19,7 @@
 #include <builtinFonts/bookerly_18_bold.h>
 #include <builtinFonts/bookerly_18_bolditalic.h>
 #include <builtinFonts/bookerly_18_italic.h>
-#include <builtinFonts/bookerly_20_regular.h>
+#include <builtinFonts/bookerly_18_regular.h>
 #include <builtinFonts/bookerly_20_bold.h>
 #include <builtinFonts/bookerly_20_bolditalic.h>
 #include <builtinFonts/bookerly_20_italic.h>
