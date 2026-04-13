@@ -12,9 +12,6 @@
 #include <Logging.h>
 #include <SPI.h>
 #include <builtinFonts/all.h>
-#include <builtinFonts/notosans_10_bold.h>
-#include <builtinFonts/notosans_10_bolditalic.h>
-#include <builtinFonts/notosans_10_italic.h>
 #include <builtinFonts/ubuntu_8_bold.h>
 #include <builtinFonts/ubuntu_8_regular.h>
 
@@ -102,41 +99,35 @@ EpdFont lexend18BoldFont(&lexend_18_bold);
 EpdFontFamily lexend18FontFamily(&lexend18RegularFont, &lexend18BoldFont, &lexend18RegularFont,
                                  &lexend18BoldFont);
 
-EpdFont notosans10RegularFont(&notosans_10_regular);
-EpdFont notosans10BoldFont(&notosans_10_bold);
-EpdFont notosans10ItalicFont(&notosans_10_italic);
-EpdFont notosans10BoldItalicFont(&notosans_10_bolditalic);
-EpdFontFamily notosans10FontFamily(&notosans10RegularFont, &notosans10BoldFont, &notosans10ItalicFont,
-                                   &notosans10BoldItalicFont);
-EpdFont notosans12RegularFont(&notosans_12_regular);
-EpdFont notosans12BoldFont(&notosans_12_bold);
-EpdFont notosans12ItalicFont(&notosans_12_italic);
-EpdFont notosans12BoldItalicFont(&notosans_12_bolditalic);
-EpdFontFamily notosans12FontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
-                                   &notosans12BoldItalicFont);
-EpdFont notosans14RegularFont(&notosans_14_regular);
-EpdFont notosans14BoldFont(&notosans_14_bold);
-EpdFont notosans14ItalicFont(&notosans_14_italic);
-EpdFont notosans14BoldItalicFont(&notosans_14_bolditalic);
-EpdFontFamily notosans14FontFamily(&notosans14RegularFont, &notosans14BoldFont, &notosans14ItalicFont,
-                                   &notosans14BoldItalicFont);
-EpdFont notosans16RegularFont(&notosans_16_regular);
-EpdFont notosans16BoldFont(&notosans_16_bold);
-EpdFont notosans16ItalicFont(&notosans_16_italic);
-EpdFont notosans16BoldItalicFont(&notosans_16_bolditalic);
-EpdFontFamily notosans16FontFamily(&notosans16RegularFont, &notosans16BoldFont, &notosans16ItalicFont,
-                                   &notosans16BoldItalicFont);
-EpdFont notosans18RegularFont(&notosans_18_regular);
-EpdFont notosans18BoldFont(&notosans_18_bold);
-EpdFont notosans18ItalicFont(&notosans_18_italic);
-EpdFont notosans18BoldItalicFont(&notosans_18_bolditalic);
-EpdFontFamily notosans18FontFamily(&notosans18RegularFont, &notosans18BoldFont, &notosans18ItalicFont,
-                                   &notosans18BoldItalicFont);
+EpdFont opendyslexic14RegularFont(&opendyslexic_14_regular);
+EpdFont opendyslexic14BoldFont(&opendyslexic_14_bold);
+EpdFont opendyslexic14ItalicFont(&opendyslexic_14_italic);
+EpdFont opendyslexic14BoldItalicFont(&opendyslexic_14_bolditalic);
+EpdFontFamily opendyslexic14FontFamily(&opendyslexic14RegularFont, &opendyslexic14BoldFont, &opendyslexic14ItalicFont,
+                                   &opendyslexic14BoldItalicFont);
+EpdFont opendyslexic16RegularFont(&opendyslexic_16_regular);
+EpdFont opendyslexic16BoldFont(&opendyslexic_16_bold);
+EpdFont opendyslexic16ItalicFont(&opendyslexic_16_italic);
+EpdFont opendyslexic16BoldItalicFont(&opendyslexic_16_bolditalic);
+EpdFontFamily opendyslexic16FontFamily(&opendyslexic16RegularFont, &opendyslexic16BoldFont, &opendyslexic16ItalicFont,
+                                   &opendyslexic16BoldItalicFont);
+EpdFont opendyslexic18RegularFont(&opendyslexic_18_regular);
+EpdFont opendyslexic18BoldFont(&opendyslexic_18_bold);
+EpdFont opendyslexic18ItalicFont(&opendyslexic_18_italic);
+EpdFont opendyslexic18BoldItalicFont(&opendyslexic_18_bolditalic);
+EpdFontFamily opendyslexic18FontFamily(&opendyslexic18RegularFont, &opendyslexic18BoldFont, &opendyslexic18ItalicFont,
+                                   &opendyslexic18BoldItalicFont);
+EpdFont opendyslexic20RegularFont(&opendyslexic_20_regular);
+EpdFont opendyslexic20BoldFont(&opendyslexic_20_bold);
+EpdFont opendyslexic20ItalicFont(&opendyslexic_20_italic);
+EpdFont opendyslexic20BoldItalicFont(&opendyslexic_20_bolditalic);
+EpdFontFamily opendyslexic20FontFamily(&opendyslexic20RegularFont, &opendyslexic20BoldFont, &opendyslexic20ItalicFont,
+                                   &opendyslexic20BoldItalicFont);
 
 #endif  // OMIT_FONTS
 
-EpdFont smallNotoFont(&notosans_8_regular);
-EpdFontFamily smallNotoFontFamily(&smallNotoFont);
+EpdFont smallLexendFont(&lexend_8_regular);
+EpdFontFamily smallLexendFontFamily(&smallLexendFont);
 
 EpdFont smallUbuntuRegularFont(&ubuntu_8_regular);
 EpdFont smallUbuntuBoldFont(&ubuntu_8_bold);
@@ -150,15 +141,14 @@ EpdFont ui12RegularFont(&ubuntu_12_regular);
 EpdFont ui12BoldFont(&ubuntu_12_bold);
 EpdFontFamily ui12FontFamily(&ui12RegularFont, &ui12BoldFont);
 #ifndef OMIT_FONTS
-EpdFontFamily ui12NotoFontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
-                                 &notosans12BoldItalicFont);
+EpdFontFamily ui12lexendFontFamily(&lexend12RegularFont, &lexend12BoldFont);
 #endif
 
 unsigned long t1 = 0;
 
 namespace {
 
-bool shouldUseNotoUiFonts(const Language lang) {
+bool shouldUseLexendUiFonts(const Language lang) {
 #ifdef OMIT_FONTS
   (void)lang;
   return false;
@@ -168,15 +158,15 @@ bool shouldUseNotoUiFonts(const Language lang) {
 }
 
 void applyUiFontsForLanguage(const Language lang) {
-  const bool useNotoUiFonts = shouldUseNotoUiFonts(lang);
-  if (useNotoUiFonts) {
-    renderer.insertFont(SMALL_FONT_ID, smallNotoFontFamily);
-    // Vietnamese needs Noto Sans coverage, but keeping both UI slots at 12 pt
+  const bool useLexendUiFonts = shouldUseLexendUiFonts(lang);
+  if (useLexendUiFonts) {
+    renderer.insertFont(SMALL_FONT_ID, smallLexendFontFamily);
+    // Vietnamese needs Lexend coverage, but keeping both UI slots at 12 pt
     // makes several screens too dense. Use 10 pt for both UI sizes so layout
     // metrics stay closer to the default Ubuntu setup.
-    renderer.insertFont(UI_10_FONT_ID, notosans10FontFamily);
-    renderer.insertFont(UI_12_FONT_ID, notosans10FontFamily);
-    LOG_INF("MAIN", "UI fonts: Noto Sans 8/10/10 for language %s", I18N.getLanguageName(lang));
+    renderer.insertFont(UI_10_FONT_ID, lexend10FontFamily);
+    renderer.insertFont(UI_12_FONT_ID, lexend12FontFamily);
+    LOG_INF("MAIN", "UI fonts: Lexend 8/10/12 for language %s", I18N.getLanguageName(lang));
     return;
   }
 
@@ -238,11 +228,11 @@ void setupDisplayAndFonts() {
   renderer.insertFont(LEXEND_16_FONT_ID, lexend16FontFamily);
   renderer.insertFont(LEXEND_18_FONT_ID, lexend18FontFamily);
 
-  renderer.insertFont(NOTOSANS_10_FONT_ID, notosans10FontFamily);
-  renderer.insertFont(NOTOSANS_12_FONT_ID, notosans12FontFamily);
-  renderer.insertFont(NOTOSANS_14_FONT_ID, notosans14FontFamily);
-  renderer.insertFont(NOTOSANS_16_FONT_ID, notosans16FontFamily);
-  renderer.insertFont(NOTOSANS_18_FONT_ID, notosans18FontFamily);
+  renderer.insertFont(OPENDYSLEXIC_14_FONT_ID, opendyslexic14FontFamily);
+  renderer.insertFont(OPENDYSLEXIC_16_FONT_ID, opendyslexic16FontFamily);
+  renderer.insertFont(OPENDYSLEXIC_18_FONT_ID, opendyslexic18FontFamily);
+  renderer.insertFont(OPENDYSLEXIC_20_FONT_ID, opendyslexic20FontFamily);
+
 #endif  // OMIT_FONTS
   refreshUiFontsForCurrentLanguage();
   LOG_DBG("MAIN", "Fonts setup");
