@@ -1,12 +1,13 @@
 Forked for experimental modifications for learning purposes, currently not intended for general use.
 
-Current modifications:
+### Current modifications:
   - Replaced boot logo with a stack of books
   - Changed Bookerly font sizes to 14, 16, 18, 20, & 22
   - Replaced Noto Sans with Open Dyslexic sizes 14, 16, 18, & 20
     - Space constraints only allow for 4 sizes of Open Dyslexic with fonts this large, so X-Small and Small are both 14pt
     - UI instances of Noto Sans sizes 8, 10, & 12 now use Lexend
-To Do:
+      
+### To Do:
   - Add reader menu options for changing font & size
   - CrossPet's implementation of auto page turn (seperate on/off from pages per minute, more options for pages per minute)
 -----
