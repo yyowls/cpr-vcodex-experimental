@@ -17,6 +17,8 @@ class EpubReaderMenuActivity final : public Activity {
     BOOKMARKS,
     TEXT_DARKNESS,
     GO_TO_PERCENT,
+    FONT_FAMILY,
+    FONT_SIZE,
     AUTO_PAGE_TURN,
     ROTATE_SCREEN,
     SCREENSHOT,

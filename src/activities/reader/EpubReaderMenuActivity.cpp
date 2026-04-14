@@ -3,9 +3,14 @@
 #include <GfxRenderer.h>
 #include <I18n.h>
 
+#include "CrossPointSettings.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+
+// Font family/size label arrays for rendering current values, implemeted from Crosspet with modifications to include Open Dyslexic and size X-Small
+static const StrId fontFamilyLabels[] = {StrId::STR_BOOKERLY, StrId::STR_OPEN_DYSLEXIC, StrId::STR_LEXEND};
+static const StrId fontSizeLabels[] = {StrId::STR_X_SMALL, StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE, StrId::STR_X_LARGE};
 
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
@@ -34,6 +39,8 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   }
   items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
   items.push_back({MenuAction::TEXT_DARKNESS, StrId::STR_TEXT_DARKNESS});
+  items.push_back({MenuAction::FONT_FAMILY, StrId::STR_FONT_FAMILY});
+  items.push_back({MenuAction::FONT_SIZE, StrId::STR_FONT_SIZE});
   items.push_back({MenuAction::AUTO_PAGE_TURN, StrId::STR_AUTO_TURN_PAGES_PER_MIN});
   items.push_back({MenuAction::GO_TO_PERCENT, StrId::STR_GO_TO_PERCENT});
   items.push_back({MenuAction::SCREENSHOT, StrId::STR_SCREENSHOT_BUTTON});
@@ -68,6 +75,21 @@ void EpubReaderMenuActivity::loop() {
     if (selectedAction == MenuAction::ROTATE_SCREEN) {
       // Cycle orientation preview locally; actual rotation happens on menu exit.
       pendingOrientation = (pendingOrientation + 1) % orientationLabels.size();
+      requestUpdate();
+      return;
+    }
+
+    // Font Family and Size options are implemented from Crosspet
+
+    if (selectedAction == MenuAction::FONT_FAMILY) {
+      SETTINGS.fontFamily = (SETTINGS.fontFamily + 1) % CrossPointSettings::FONT_FAMILY_COUNT;
+      SETTINGS.saveToFile();
+      requestUpdate();
+      return;
+    }
+    if (selectedAction == MenuAction::FONT_SIZE) {
+      SETTINGS.fontSize = (SETTINGS.fontSize + 1) % CrossPointSettings::FONT_SIZE_COUNT;
+      SETTINGS.saveToFile();
       requestUpdate();
       return;
     }
@@ -159,6 +181,22 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
       const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
       renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
     }
+
+    // Font Family and Size options are implemented from Crosspet with modifications to match existing
+
+    // Right-aligned value for font family
+      if (menuItems[i].action == MenuAction::FONT_FAMILY) {
+        const char* value = I18N.get(fontFamilyLabels[SETTINGS.fontFamily]);
+        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
+        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
+      }
+
+      // Right-aligned value for font size
+      if (menuItems[i].action == MenuAction::FONT_SIZE) {
+        const char* value = I18N.get(fontSizeLabels[SETTINGS.fontSize]);
+        const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
+        renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
+      }
 
     if (menuItems[i].action == MenuAction::AUTO_PAGE_TURN) {
       // Render current page turn value on the right edge of the content area.
