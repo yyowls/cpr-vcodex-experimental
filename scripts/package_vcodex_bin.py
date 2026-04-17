@@ -7,6 +7,8 @@ from pathlib import Path
 
 Import("env")
 
+README_PATH = "README.md"
+
 
 def extract_define(name: str) -> str:
     for define in env.get("CPPDEFINES", []):
@@ -29,6 +31,29 @@ def extract_define_int(name: str) -> int | None:
         return int(value)
     except ValueError:
         return None
+
+
+def update_readme_release_version(project_dir: Path, artifact_name: str) -> None:
+    readme_path = project_dir / README_PATH
+    if not readme_path.exists():
+        print(f"README release update skipped: missing {readme_path}")
+        return
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    updated_text, replacements = re.subn(
+        r"(\| Current release \(CPR-vCodex\) build \| `)([^`]+)(` \|)",
+        rf"\g<1>{artifact_name[:-4]}\g<3>",
+        readme_text,
+        count=1,
+    )
+
+    if replacements == 0:
+        print(f"README release update skipped: marker not found in {readme_path}")
+        return
+
+    if updated_text != readme_text:
+        readme_path.write_text(updated_text, encoding="utf-8")
+        print(f"Updated README current release to {artifact_name[:-4]}")
 
 
 def package_vcodex_bin(source, target, env):
@@ -65,6 +90,9 @@ def package_vcodex_bin(source, target, env):
         metadata["buildSequence"] = build_seq
     metadata_path = output_dir / f"{safe_version}-cpr-vcodex.json"
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    if env.subst("$PIOENV") == "gh_release":
+        update_readme_release_version(project_dir, artifact_name)
 
     print(f"Packaged vcodex artifact: {artifact_path}")
     print(f"Wrote vcodex metadata: {metadata_path}")
