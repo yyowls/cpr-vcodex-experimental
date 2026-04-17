@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <Logging.h>
 #include <cctype>
+#include <cstring>
 
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
@@ -10,11 +11,14 @@
 
 namespace {
 constexpr char latestReleaseUrl[] = "https://api.github.com/repos/franssjz/cpr-vcodex/releases/latest";
+constexpr char legacyFirmwareAssetName[] = "firmware.bin";
+constexpr char vcodexFirmwareSuffix[] = ".cpr-vcodex.bin";
 
 struct ParsedVersion {
   int parts[4] = {0, 0, 0, 0};
   bool parsed = false;
   bool isRc = false;
+  bool isDev = false;
 };
 
 const char* currentVersionString() {
@@ -23,6 +27,18 @@ const char* currentVersionString() {
 #else
   return CROSSPOINT_VERSION;
 #endif
+}
+
+std::string buildUserAgent() { return std::string("CrossPoint-ESP32-") + currentVersionString(); }
+
+bool endsWith(const std::string& value, const char* suffix) {
+  const size_t valueLen = value.size();
+  const size_t suffixLen = strlen(suffix);
+  return valueLen >= suffixLen && value.compare(valueLen - suffixLen, suffixLen, suffix) == 0;
+}
+
+bool isSupportedFirmwareAsset(const std::string& assetName) {
+  return assetName == legacyFirmwareAssetName || endsWith(assetName, vcodexFirmwareSuffix);
 }
 
 ParsedVersion parseVersion(const char* version) {
@@ -57,6 +73,7 @@ ParsedVersion parseVersion(const char* version) {
   }
 
   parsedVersion.isRc = strstr(version, "-rc") != nullptr;
+  parsedVersion.isDev = strstr(version, "-dev") != nullptr;
   return parsedVersion;
 }
 
@@ -74,7 +91,8 @@ extern esp_err_t esp_crt_bundle_attach(void* conf);
 }
 
 esp_err_t http_client_set_header_cb(esp_http_client_handle_t http_client) {
-  return esp_http_client_set_header(http_client, "User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  const std::string userAgent = buildUserAgent();
+  return esp_http_client_set_header(http_client, "User-Agent", userAgent.c_str());
 }
 
 esp_err_t event_handler(esp_http_client_event_t* event) {
@@ -122,6 +140,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   processedSize = 0;
   totalSize = 0;
   render = false;
+  output_len = 0;
 
   esp_http_client_config_t client_config = {
       .url = latestReleaseUrl,
@@ -151,7 +170,8 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
     return INTERNAL_UPDATE_ERROR;
   }
 
-  esp_err = esp_http_client_set_header(client_handle, "User-Agent", "CrossPoint-ESP32-" CROSSPOINT_VERSION);
+  const std::string userAgent = buildUserAgent();
+  esp_err = esp_http_client_set_header(client_handle, "User-Agent", userAgent.c_str());
   if (esp_err != ESP_OK) {
     LOG_ERR("OTA", "esp_http_client_set_header Failed : %s", esp_err_to_name(esp_err));
     esp_http_client_cleanup(client_handle);
@@ -195,17 +215,24 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   latestVersion = doc["tag_name"].as<std::string>();
 
   for (int i = 0; i < doc["assets"].size(); i++) {
-    if (doc["assets"][i]["name"] == "firmware.bin") {
-      otaUrl = doc["assets"][i]["browser_download_url"].as<std::string>();
-      otaSize = doc["assets"][i]["size"].as<size_t>();
-      totalSize = otaSize;
-      updateAvailable = true;
+    if (!doc["assets"][i]["name"].is<std::string>()) continue;
+    const std::string assetName = doc["assets"][i]["name"].as<std::string>();
+    if (!isSupportedFirmwareAsset(assetName)) continue;
+
+    otaUrl = doc["assets"][i]["browser_download_url"].as<std::string>();
+    otaSize = doc["assets"][i]["size"].as<size_t>();
+    totalSize = otaSize;
+    updateAvailable = true;
+
+    // Prefer the vcodex-named artifact when it exists, but keep accepting
+    // legacy firmware.bin releases for compatibility.
+    if (endsWith(assetName, vcodexFirmwareSuffix)) {
       break;
     }
   }
 
   if (!updateAvailable) {
-    LOG_ERR("OTA", "No firmware.bin asset found");
+    LOG_ERR("OTA", "No OTA firmware asset found");
     return NO_UPDATE;
   }
 
@@ -228,6 +255,12 @@ bool OtaUpdater::isUpdateNewer() const {
     if (latest.parts[index] != currentVersion.parts[index]) {
       return latest.parts[index] > currentVersion.parts[index];
     }
+  }
+
+  const bool currentPreRelease = currentVersion.isRc || currentVersion.isDev;
+  const bool latestPreRelease = latest.isRc || latest.isDev;
+  if (currentPreRelease != latestPreRelease) {
+    return !latestPreRelease && currentPreRelease;
   }
 
   if (currentVersion.isRc != latest.isRc) {

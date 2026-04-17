@@ -23,8 +23,9 @@ const char* I18n::get(StrId id) const {
     return "???";
   }
 
-  const auto view = getStringView(_language);
-  return view.data + view.offsets[index];
+  // Use generated helper function - no hardcoded switch needed!
+  const char* const* strings = getStringArray(_language);
+  return strings[index];
 }
 
 void I18n::setLanguage(Language lang) {
@@ -70,7 +71,6 @@ void I18n::loadSettings() {
   serialization::readPod(file, version);
   if (version != SETTINGS_VERSION) {
     Serial.printf("[I18N] Settings version mismatch\n");
-    file.close();
     return;
   }
 
@@ -80,8 +80,6 @@ void I18n::loadSettings() {
     _language = static_cast<Language>(lang);
     Serial.printf("[I18N] Loaded language: %d\n", static_cast<int>(_language));
   }
-
-  file.close();
 }
 
 // Generate character set for a specific language

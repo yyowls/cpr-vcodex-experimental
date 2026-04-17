@@ -83,13 +83,9 @@ class GfxRenderer {
 
   // Fading fix control
   void setFadingFix(const bool enabled) { fadingFix = enabled; }
-
-  // Dark mode control
   void setDarkMode(const bool enabled) { darkMode = enabled; }
   bool isDarkMode() const { return darkMode; }
   void requestNextFullRefresh() const { nextRefreshFull = true; }
-
-  // Text darkness control for anti-aliased reader text.
   void setTextDarkness(const uint8_t d) { textDarkness = d; }
   uint8_t getTextDarkness() const { return textDarkness; }
 

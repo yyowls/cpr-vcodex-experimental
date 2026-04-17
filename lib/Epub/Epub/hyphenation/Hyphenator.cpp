@@ -13,8 +13,8 @@ const LanguageHyphenator* Hyphenator::cachedHyphenator_ = nullptr;
 namespace {
 
 // Normalize ISO 639-2 (three-letter) codes to ISO 639-1 (two-letter) codes used by the
-// hyphenation registry. EPUBs may use either form in their dc:language metadata (e.g.
-// "eng" instead of "en"). Both the bibliographic ("fre"/"ger") and terminological
+// hyphenation registry.  EPUBs may use either form in their dc:language metadata (e.g.
+// "eng" instead of "en").  Both the bibliographic ("fre"/"ger") and terminological
 // ("fra"/"deu") ISO 639-2 variants are mapped.
 struct Iso639Mapping {
   const char* iso639_2;

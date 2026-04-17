@@ -29,7 +29,6 @@ bool loadKOReader(KOReaderCredentialStore& store, const char* json, bool* needsR
 // RecentBooksStore
 bool saveRecentBooks(const RecentBooksStore& store, const char* path);
 bool loadRecentBooks(RecentBooksStore& store, const char* json);
-bool loadRecentBooksFromFile(RecentBooksStore& store, const char* path);
 
 // ReadingStatsStore
 bool saveReadingStats(const ReadingStatsStore& store, const char* path);

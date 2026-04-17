@@ -94,8 +94,8 @@ void ReadMeActivity::loadDetailLines() {
   scrollOffset = 0;
 
   const auto& metrics = UITheme::getInstance().getMetrics();
-  const int textWidth =
-      renderer.getScreenWidth() - metrics.contentSidePadding * 2 - metrics.scrollBarWidth - metrics.scrollBarRightOffset - 8;
+  const int textWidth = renderer.getScreenWidth() - metrics.contentSidePadding * 2 - metrics.scrollBarWidth -
+                        metrics.scrollBarRightOffset - 8;
 
   for (const auto& rawLine : splitLinesPreserveEmpty(getTopicBody(activeTopic))) {
     if (trim(rawLine).empty()) {

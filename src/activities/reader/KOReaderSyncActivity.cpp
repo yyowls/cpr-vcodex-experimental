@@ -6,21 +6,33 @@
 #include <WiFi.h>
 #include <esp_sntp.h>
 
-#include <algorithm>
-#include <ctime>
-
-#include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "KOReaderDocumentId.h"
 #include "MappedInputManager.h"
+#include "CrossPointState.h"
 #include "activities/network/WifiSelectionActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/TimeUtils.h"
 
 namespace {
+void syncTimeWithNTP() {
+  if (TimeUtils::syncTimeWithNtp(5000)) {
+    LOG_DBG("KOSync", "NTP time synced");
+  } else {
+    LOG_DBG("KOSync", "NTP sync timeout, using fallback");
+  }
+
+  const uint32_t currentValidTimestamp = TimeUtils::getCurrentValidTimestamp();
+  if (currentValidTimestamp > 0) {
+    APP_STATE.registerValidTimeSync(currentValidTimestamp);
+    APP_STATE.saveToFile();
+  }
+}
 void wifiOff() {
-  TimeUtils::stopNtp();
+  if (esp_sntp_enabled()) {
+    esp_sntp_stop();
+  }
   WiFi.disconnect(false);
   delay(100);
   WiFi.mode(WIFI_OFF);
@@ -48,12 +60,7 @@ void KOReaderSyncActivity::onWifiSelectionComplete(const bool success) {
   requestUpdate(true);
 
   // Sync time with NTP before making API requests
-  TimeUtils::syncTimeWithNtp();
-  const uint32_t currentValidTimestamp = TimeUtils::getCurrentValidTimestamp();
-  if (currentValidTimestamp > 0) {
-    APP_STATE.registerValidTimeSync(currentValidTimestamp);
-    APP_STATE.saveToFile();
-  }
+  syncTimeWithNTP();
 
   {
     RenderLock lock(*this);

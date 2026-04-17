@@ -18,7 +18,6 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
-#include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "activities/apps/AchievementsActivity.h"
 #include "activities/apps/BookmarksAppActivity.h"
@@ -34,6 +33,7 @@
 #include "fontIds.h"
 #include "util/HeaderDateUtils.h"
 #include "util/ShortcutRegistry.h"
+#include "util/ShortcutUiMetadata.h"
 
 namespace {
 constexpr unsigned long RECENT_BOOK_LONG_PRESS_MS = 1000;
@@ -44,27 +44,6 @@ struct HomeShortcutEntry {
   bool isAppsHub = false;
   bool isOpds = false;
 };
-
-void drawHomeDate(GfxRenderer& renderer, const ThemeMetrics&, const int, const std::string& dateText) {
-  HeaderDateUtils::drawTopLine(renderer, dateText);
-}
-
-std::string formatDurationHmCompact(const uint64_t totalMs) {
-  const uint64_t totalMinutes = totalMs / 60000ULL;
-  const uint64_t hours = totalMinutes / 60ULL;
-  const uint64_t minutes = totalMinutes % 60ULL;
-  if (hours == 0) {
-    return std::to_string(minutes) + "m";
-  }
-  return std::to_string(hours) + "h " + std::to_string(minutes) + "m";
-}
-
-std::string getReadingStatsShortcutSubtitle() {
-  const uint64_t todayReadingMs = READING_STATS.getTodayReadingMs();
-  const std::string todayValue = formatDurationHmCompact(todayReadingMs);
-  const std::string goalValue = formatDurationHmCompact(getDailyReadingGoalMs());
-  return todayValue + " / " + goalValue + " | " + std::to_string(READING_STATS.getCurrentStreakDays());
-}
 
 std::string getRecentBookConfirmationLabel(const RecentBook& book) {
   return !book.title.empty() ? book.title : book.path;
@@ -108,7 +87,7 @@ std::string getHomeShortcutTitle(const HomeShortcutEntry& entry) {
 }
 
 std::string getHomeShortcutSubtitle(const HomeShortcutEntry& entry) {
-  return (entry.definition && entry.definition->id == ShortcutId::Stats) ? getReadingStatsShortcutSubtitle() : "";
+  return entry.definition ? ShortcutUiMetadata::getSubtitle(*entry.definition) : "";
 }
 
 UIIcon getHomeShortcutIcon(const HomeShortcutEntry& entry) {
@@ -122,8 +101,7 @@ UIIcon getHomeShortcutIcon(const HomeShortcutEntry& entry) {
 }
 
 bool showHomeShortcutAccessory(const HomeShortcutEntry& entry) {
-  return entry.definition && entry.definition->id == ShortcutId::Stats &&
-         READING_STATS.getTodayReadingMs() >= getDailyReadingGoalMs();
+  return entry.definition && ShortcutUiMetadata::showAccessory(*entry.definition);
 }
 }  // namespace
 
@@ -137,21 +115,17 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   recentBooks.reserve(std::min(static_cast<int>(books.size()), maxBooks));
 
   for (const RecentBook& book : books) {
-    // Limit to maximum number of recent books
     if (recentBooks.size() >= maxBooks) {
       break;
     }
-
-    // Skip if file no longer exists
     if (!Storage.exists(book.path.c_str())) {
       continue;
     }
-
     recentBooks.push_back(book);
   }
 }
 
-bool HomeActivity::needsRecentCoverLoad(int coverHeight) const {
+bool HomeActivity::needsRecentCoverLoad(const int coverHeight) const {
   for (const RecentBook& book : recentBooks) {
     if (book.coverBmpPath.empty()) {
       continue;
@@ -177,19 +151,16 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
     if (!book.coverBmpPath.empty()) {
       std::string coverPath = UITheme::getCoverThumbPath(book.coverBmpPath, coverHeight);
       if (!Storage.exists(coverPath.c_str())) {
-        // If epub, try to load the metadata for title/author and cover
         if (FsHelpers::hasEpubExtension(book.path)) {
           Epub epub(book.path, "/.crosspoint");
-          // Skip loading css since we only need metadata here
           epub.load(false, true);
 
-          // Try to generate thumbnail image for Continue Reading card
           if (!showingLoading) {
             showingLoading = true;
             popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
           }
           GUI.fillPopupProgress(renderer, popupRect, 10 + progress * (90 / recentBooks.size()));
-          bool success = epub.generateThumbBmp(coverHeight);
+          const bool success = epub.generateThumbBmp(coverHeight);
           if (!success) {
             RECENT_BOOKS.updateBook(book.path, book.title, book.author, "");
             book.coverBmpPath = "";
@@ -197,16 +168,14 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
           coverRendered = false;
           needsRefresh = true;
         } else if (FsHelpers::hasXtcExtension(book.path)) {
-          // Handle XTC file
           Xtc xtc(book.path, "/.crosspoint");
           if (xtc.load()) {
-            // Try to generate thumbnail image for Continue Reading card
             if (!showingLoading) {
               showingLoading = true;
               popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
             }
             GUI.fillPopupProgress(renderer, popupRect, 10 + progress * (90 / recentBooks.size()));
-            bool success = xtc.generateThumbBmp(coverHeight);
+            const bool success = xtc.generateThumbBmp(coverHeight);
             if (!success) {
               RECENT_BOOKS.updateBook(book.path, book.title, book.author, "");
               book.coverBmpPath = "";
@@ -230,7 +199,6 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
 void HomeActivity::onEnter() {
   Activity::onEnter();
 
-  // Check if OPDS browser URL is configured
   hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
 
   selectorIndex = 0;
@@ -242,14 +210,11 @@ void HomeActivity::onEnter() {
   loadRecentBooks(metrics.homeRecentBooksCount);
   recentsLoaded = !needsRecentCoverLoad(metrics.homeCoverHeight);
 
-  // Trigger first update
   requestUpdate();
 }
 
 void HomeActivity::onExit() {
   Activity::onExit();
-
-  // Free the stored cover buffer if any
   freeCoverBuffer();
 }
 
@@ -259,7 +224,6 @@ bool HomeActivity::storeCoverBuffer() {
     return false;
   }
 
-  // Free any existing buffer first
   freeCoverBuffer();
 
   const size_t bufferSize = renderer.getBufferSize();
@@ -298,14 +262,49 @@ void HomeActivity::freeCoverBuffer() {
 void HomeActivity::loop() {
   const int menuCount = getMenuItemCount();
   const auto homeEntries = getHomeShortcutEntries(hasOpdsUrl);
+  const int recentCount = static_cast<int>(recentBooks.size());
+  const int homeCount = static_cast<int>(homeEntries.size());
 
-  buttonNavigator.onNext([this, menuCount] {
+  buttonNavigator.onNextPress([this, menuCount] {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
     requestUpdate();
   });
 
-  buttonNavigator.onPrevious([this, menuCount] {
+  buttonNavigator.onPreviousPress([this, menuCount] {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
+    requestUpdate();
+  });
+
+  buttonNavigator.onNextContinuous([this, menuCount, recentCount, homeCount] {
+    if (menuCount <= 0) {
+      return;
+    }
+
+    if (homeCount <= HOME_SHORTCUT_PAGE_SIZE) {
+      selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
+    } else if (selectorIndex < recentCount) {
+      selectorIndex = recentCount;
+    } else {
+      const int selectedHomeIndex = selectorIndex - recentCount;
+      selectorIndex = recentCount + ButtonNavigator::nextPageIndex(selectedHomeIndex, homeCount, HOME_SHORTCUT_PAGE_SIZE);
+    }
+    requestUpdate();
+  });
+
+  buttonNavigator.onPreviousContinuous([this, menuCount, recentCount, homeCount] {
+    if (menuCount <= 0) {
+      return;
+    }
+
+    if (homeCount <= HOME_SHORTCUT_PAGE_SIZE) {
+      selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
+    } else if (selectorIndex < recentCount) {
+      selectorIndex = recentCount + ButtonNavigator::previousPageIndex(0, homeCount, HOME_SHORTCUT_PAGE_SIZE);
+    } else {
+      const int selectedHomeIndex = selectorIndex - recentCount;
+      selectorIndex =
+          recentCount + ButtonNavigator::previousPageIndex(selectedHomeIndex, homeCount, HOME_SHORTCUT_PAGE_SIZE);
+    }
     requestUpdate();
   });
 
@@ -417,9 +416,8 @@ void HomeActivity::render(RenderLock&&) {
   renderer.clearScreen();
   bool bufferRestored = coverBufferStored && restoreCoverBuffer();
 
-  const std::string homeDate = HeaderDateUtils::getDisplayDateText();
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding}, nullptr, nullptr);
-  drawHomeDate(renderer, metrics, pageWidth, homeDate);
+  HeaderDateUtils::drawTopLine(renderer, HeaderDateUtils::getDisplayDateText());
 
   GUI.drawRecentBookCover(renderer, Rect{0, metrics.homeTopPadding, pageWidth, metrics.homeCoverTileHeight},
                           recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
@@ -442,13 +440,11 @@ void HomeActivity::render(RenderLock&&) {
     const int headerHeight = 34;
     const int listTop = shortcutsRect.y + headerHeight + 12;
     const int listHeight = std::max(0, shortcutsRect.height - headerHeight - 12);
-    const int currentPage =
-        std::max(0, selectedHomeIndex >= 0 ? selectedHomeIndex / HOME_SHORTCUT_PAGE_SIZE : 0);
+    const int currentPage = std::max(0, selectedHomeIndex >= 0 ? selectedHomeIndex / HOME_SHORTCUT_PAGE_SIZE : 0);
     const int totalPages =
         (static_cast<int>(homeEntries.size()) + HOME_SHORTCUT_PAGE_SIZE - 1) / HOME_SHORTCUT_PAGE_SIZE;
     const int pageStart = currentPage * HOME_SHORTCUT_PAGE_SIZE;
-    const int pageItemCount =
-        std::min(HOME_SHORTCUT_PAGE_SIZE, static_cast<int>(homeEntries.size()) - pageStart);
+    const int pageItemCount = std::min(HOME_SHORTCUT_PAGE_SIZE, static_cast<int>(homeEntries.size()) - pageStart);
     const int localSelectedIndex =
         (selectedHomeIndex >= pageStart && selectedHomeIndex < pageStart + pageItemCount) ? selectedHomeIndex - pageStart
                                                                                             : -1;
@@ -496,6 +492,8 @@ void HomeActivity::onReadingStatsOpen() {
   activityManager.replaceActivity(std::make_unique<ReadingStatsActivity>(renderer, mappedInput));
 }
 
-void HomeActivity::onSyncDayOpen() { activityManager.replaceActivity(std::make_unique<SyncDayActivity>(renderer, mappedInput)); }
+void HomeActivity::onSyncDayOpen() {
+  activityManager.replaceActivity(std::make_unique<SyncDayActivity>(renderer, mappedInput));
+}
 
 void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }

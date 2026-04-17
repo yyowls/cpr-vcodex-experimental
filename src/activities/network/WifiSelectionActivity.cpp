@@ -7,9 +7,7 @@
 
 #include <algorithm>
 #include <map>
-#include <ctime>
 
-#include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "WifiCredentialStore.h"
@@ -19,7 +17,7 @@
 #include "util/TimeUtils.h"
 
 #if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
-#include "esp_system.h"
+#include <esp_mac.h>
 #endif
 
 void WifiSelectionActivity::onEnter() {
@@ -45,27 +43,26 @@ void WifiSelectionActivity::onEnter() {
   forgetPromptSelection = 0;
   autoConnecting = false;
 
-  // Cache MAC address for display.
-  // On ESP32 read the base MAC directly to avoid placeholder/uninitialized values
-  // returned when the WiFi driver hasn't been fully initialized yet.
-  #if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
-    uint8_t baseMac[6];
-    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
-    char macStr[64];
-    snprintf(macStr, sizeof(macStr), "%s %02x-%02x-%02x-%02x-%02x-%02x", tr(STR_MAC_ADDRESS),
-             baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
-    cachedMacAddress = std::string(macStr);
-  #else
-    // Fallback: ensure WiFi is in station mode before reading macAddress()
-    WiFi.mode(WIFI_STA);
-    delay(10);
-    uint8_t mac[6];
-    WiFi.macAddress(mac);
-    char macStr[64];
-    snprintf(macStr, sizeof(macStr), "%s %02x-%02x-%02x-%02x-%02x-%02x", tr(STR_MAC_ADDRESS),
-             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    cachedMacAddress = std::string(macStr);
-  #endif
+  // Cache the MAC address for display.
+  // On ESP32, read the base MAC directly to avoid placeholder values when the
+  // WiFi driver has not fully initialized yet.
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+  uint8_t baseMac[6];
+  esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+  char macStr[64];
+  snprintf(macStr, sizeof(macStr), "%s %02x-%02x-%02x-%02x-%02x-%02x", tr(STR_MAC_ADDRESS), baseMac[0], baseMac[1],
+           baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+  cachedMacAddress = std::string(macStr);
+#else
+  WiFi.mode(WIFI_STA);
+  delay(10);
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  char macStr[64];
+  snprintf(macStr, sizeof(macStr), "%s %02x-%02x-%02x-%02x-%02x-%02x", tr(STR_MAC_ADDRESS), mac[0], mac[1], mac[2],
+           mac[3], mac[4], mac[5]);
+  cachedMacAddress = std::string(macStr);
+#endif
 
   // Trigger first update to show scanning message
   requestUpdate();

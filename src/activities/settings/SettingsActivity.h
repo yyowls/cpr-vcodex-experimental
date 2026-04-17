@@ -23,16 +23,25 @@ enum class SettingAction {
   ClearCache,
   CheckForUpdates,
   Language,
+  SyncDay,
   TimeZone,
+  ReadingStats,
+  ResetReadingStats,
+  ExportReadingStats,
+  ImportReadingStats,
+  ReadingHeatmap,
+  ReadingProfile,
+  Achievements,
+  ResetAchievements,
+  SyncAchievementsFromStats,
   ShortcutLocation,
   ShortcutVisibility,
   OrderHomeShortcuts,
   OrderAppsShortcuts,
-  ResetReadingStats,
-  ExportReadingStats,
-  ImportReadingStats,
-  ResetAchievements,
-  SyncAchievementsFromStats,
+  Bookmarks,
+  SleepApp,
+  IfFound,
+  ReadMe,
 };
 
 struct SettingInfo {
@@ -159,6 +168,8 @@ struct SettingInfo {
 };
 
 class SettingsActivity final : public Activity {
+  using SettingRef = const SettingInfo*;
+
   ButtonNavigator buttonNavigator;
 
   int selectedCategoryIndex = 0;  // Currently selected category
@@ -166,12 +177,12 @@ class SettingsActivity final : public Activity {
   int settingsCount = 0;
 
   // Per-category settings derived from shared list + device-only actions
-  std::vector<const SettingInfo*> displaySettings;
-  std::vector<const SettingInfo*> readerSettings;
-  std::vector<const SettingInfo*> controlsSettings;
-  std::vector<const SettingInfo*> systemSettings;
-  std::vector<const SettingInfo*> appSettings;
-  const std::vector<const SettingInfo*>* currentSettings = nullptr;
+  std::vector<SettingRef> displaySettings;
+  std::vector<SettingRef> readerSettings;
+  std::vector<SettingRef> controlsSettings;
+  std::vector<SettingRef> systemSettings;
+  std::vector<SettingRef> appSettings;
+  const std::vector<SettingRef>* currentSettings = nullptr;
   bool settingsListsBuilt = false;
 
   static constexpr int categoryCount = 5;

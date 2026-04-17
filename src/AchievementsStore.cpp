@@ -1,7 +1,5 @@
 #include "AchievementsStore.h"
 
-#include <Arduino.h>
-#include <Epub.h>
 #include <HalStorage.h>
 #include <I18n.h>
 #include <JsonSettingsIO.h>
@@ -10,7 +8,6 @@
 #include <cstdio>
 #include <ctime>
 
-#include "CrossPointSettings.h"
 #include "activities/reader/BookmarkStore.h"
 #include "util/TimeUtils.h"
 
@@ -224,14 +221,11 @@ bool AchievementsStore::hasString(const std::vector<std::string>& values, const 
 
 const AchievementDefinition& AchievementsStore::getDefinition(const AchievementId id) const {
   const auto& items = definitions();
-  const auto it = std::find_if(items.begin(), items.end(), [id](const AchievementDefinition& definition) {
-    return definition.id == id;
-  });
-
+  const auto it = std::find_if(items.begin(), items.end(),
+                               [id](const AchievementDefinition& definition) { return definition.id == id; });
   if (it != items.end()) {
     return *it;
   }
-
   return items.front();
 }
 

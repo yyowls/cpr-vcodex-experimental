@@ -30,19 +30,14 @@ std::string sanitizeBackLabel(const char* label) {
   std::string text(label);
   bool hadPrefix = false;
 
-  // Handle the real UTF-8 left guillemet prefix first.
   if (text.size() >= 2 && static_cast<unsigned char>(text[0]) == 0xC2 &&
       static_cast<unsigned char>(text[1]) == 0xAB) {
     text.erase(0, 2);
     hadPrefix = true;
   } else if (!text.empty() && static_cast<unsigned char>(text[0]) == 0xAB) {
-    // Defensive fallback for any single-byte Latin-1 style prefix.
     text.erase(0, 1);
     hadPrefix = true;
   } else {
-    // Several translations contain a mojibake prefix before the actual word.
-    // If the first token is short, non-ASCII, and followed by a normal label,
-    // strip that token and normalize it to ASCII "<< ".
     const size_t firstSpace = text.find(' ');
     if (firstSpace != std::string::npos && firstSpace > 0 && firstSpace <= 24 && firstSpace + 1 < text.size()) {
       bool hasNonAscii = false;

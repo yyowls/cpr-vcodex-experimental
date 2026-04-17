@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <string>
 
-#include "ReadingStatsExtendedActivity.h"
 #include "ReadingStatsDetailActivity.h"
+#include "ReadingStatsExtendedActivity.h"
 #include "ReadingStatsStore.h"
 #include "activities/util/ConfirmationActivity.h"
 #include "components/UITheme.h"
@@ -24,6 +24,7 @@ constexpr int LIST_HEADER_BOTTOM_GAP = 10;
 constexpr int BOOK_ROW_HEIGHT = 80;
 constexpr int BOOK_ROW_GAP = 10;
 constexpr int BOOKS_PER_PAGE = 3;
+
 std::string formatDurationHm(const uint64_t totalMs) {
   const uint64_t totalMinutes = totalMs / 60000ULL;
   const uint64_t hours = totalMinutes / 60ULL;
@@ -73,20 +74,6 @@ void drawMetricCard(GfxRenderer& renderer, const Rect& rect, const char* label, 
   if (showCheck) {
     drawCheckBadge(renderer, rect.x + rect.width - 28, rect.y + 40);
   }
-}
-
-void drawRecentWindowCard(GfxRenderer& renderer, const Rect& rect, const char* periodLabel, const std::string& value) {
-  renderer.fillRectDither(rect.x, rect.y, rect.width, rect.height, Color::LightGray);
-  renderer.drawRect(rect.x, rect.y, rect.width, rect.height);
-
-  renderer.drawText(UI_10_FONT_ID, rect.x + 12, rect.y + 8, periodLabel, true, EpdFontFamily::BOLD);
-
-  const int valueFontId =
-      renderer.getTextWidth(UI_12_FONT_ID, value.c_str(), EpdFontFamily::BOLD) <= rect.width - 24 ? UI_12_FONT_ID
-                                                                                                    : UI_10_FONT_ID;
-  const std::string truncatedValue =
-      renderer.truncatedText(valueFontId, value.c_str(), rect.width - 24, EpdFontFamily::BOLD);
-  renderer.drawText(valueFontId, rect.x + 12, rect.y + 24, truncatedValue.c_str(), true, EpdFontFamily::BOLD);
 }
 
 void drawMoreDetailsButton(GfxRenderer& renderer, const Rect& rect, const bool selected) {
@@ -291,9 +278,6 @@ void ReadingStatsActivity::render(RenderLock&&) {
                       cardWidth, SUMMARY_CARD_HEIGHT},
                  tr(STR_BOOKS_STARTED), std::to_string(READING_STATS.getBooksStartedCount()));
 
-  // drawRecentWindowCard(renderer, Rect{sidePadding, detailsTop, cardWidth, DETAILS_BUTTON_HEIGHT}, "7D", last7DaysValue);
-  // drawRecentWindowCard(renderer, Rect{sidePadding + cardWidth + SUMMARY_GAP, detailsTop, cardWidth, DETAILS_BUTTON_HEIGHT},
-  //                      "30D", last30DaysValue);
   drawMoreDetailsButton(renderer, Rect{sidePadding, detailsTop, pageWidth - sidePadding * 2, DETAILS_BUTTON_HEIGHT},
                         selectedIndex == 0);
 

@@ -12,21 +12,14 @@
 #include <Logging.h>
 #include <SPI.h>
 #include <builtinFonts/all.h>
-#include <builtinFonts/notosans_10_bold.h>
-#include <builtinFonts/notosans_10_bolditalic.h>
-#include <builtinFonts/notosans_10_italic.h>
-#include <builtinFonts/ubuntu_8_bold.h>
-#include <builtinFonts/ubuntu_8_regular.h>
 
 #include <cstring>
-#include <esp_sleep.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
-#include "AchievementsStore.h"
-#include "FirmwareVersion.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
+#include "AchievementsStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "UiFontSelection.h"
@@ -36,7 +29,6 @@
 #include "fontIds.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
-#include "util/TimeUtils.h"
 
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
@@ -77,8 +69,8 @@ EpdFont bookerly18BoldItalicFont(&bookerly_18_bolditalic);
 EpdFontFamily bookerly18FontFamily(&bookerly18RegularFont, &bookerly18BoldFont, &bookerly18ItalicFont,
                                    &bookerly18BoldItalicFont);
 
-// Lexend adapted from crosspet. No Italic TTF is bundled, so italic falls
-// back to regular and bolditalic falls back to bold.
+// Lexend is bundled with regular and bold only. Italic falls back to regular,
+// and bold italic falls back to bold to keep the family complete for EPUB styling.
 EpdFont lexend10RegularFont(&lexend_10_regular);
 EpdFont lexend10BoldFont(&lexend_10_bold);
 EpdFontFamily lexend10FontFamily(&lexend10RegularFont, &lexend10BoldFont, &lexend10RegularFont,
@@ -130,15 +122,10 @@ EpdFont notosans18ItalicFont(&notosans_18_italic);
 EpdFont notosans18BoldItalicFont(&notosans_18_bolditalic);
 EpdFontFamily notosans18FontFamily(&notosans18RegularFont, &notosans18BoldFont, &notosans18ItalicFont,
                                    &notosans18BoldItalicFont);
-
 #endif  // OMIT_FONTS
 
-EpdFont smallNotoFont(&notosans_8_regular);
-EpdFontFamily smallNotoFontFamily(&smallNotoFont);
-
-EpdFont smallUbuntuRegularFont(&ubuntu_8_regular);
-EpdFont smallUbuntuBoldFont(&ubuntu_8_bold);
-EpdFontFamily smallUbuntuFontFamily(&smallUbuntuRegularFont, &smallUbuntuBoldFont);
+EpdFont smallFont(&notosans_8_regular);
+EpdFontFamily smallFontFamily(&smallFont);
 
 EpdFont ui10RegularFont(&ubuntu_10_regular);
 EpdFont ui10BoldFont(&ubuntu_10_bold);
@@ -147,12 +134,6 @@ EpdFontFamily ui10FontFamily(&ui10RegularFont, &ui10BoldFont);
 EpdFont ui12RegularFont(&ubuntu_12_regular);
 EpdFont ui12BoldFont(&ubuntu_12_bold);
 EpdFontFamily ui12FontFamily(&ui12RegularFont, &ui12BoldFont);
-#ifndef OMIT_FONTS
-EpdFontFamily ui12NotoFontFamily(&notosans12RegularFont, &notosans12BoldFont, &notosans12ItalicFont,
-                                 &notosans12BoldItalicFont);
-#endif
-
-unsigned long t1 = 0;
 
 namespace {
 
@@ -166,27 +147,80 @@ bool shouldUseNotoUiFonts(const Language lang) {
 }
 
 void applyUiFontsForLanguage(const Language lang) {
-  const bool useNotoUiFonts = shouldUseNotoUiFonts(lang);
-  if (useNotoUiFonts) {
-    renderer.insertFont(SMALL_FONT_ID, smallNotoFontFamily);
-    // Vietnamese needs Noto Sans coverage, but keeping both UI slots at 12 pt
-    // makes several screens too dense. Use 10 pt for both UI sizes so layout
-    // metrics stay closer to the default Ubuntu setup.
+  renderer.insertFont(SMALL_FONT_ID, smallFontFamily);
+
+#ifdef OMIT_FONTS
+  (void)lang;
+  renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
+  renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
+#else
+  if (shouldUseNotoUiFonts(lang)) {
+    // Keep Vietnamese UI at 10 pt for both slots to preserve existing layouts
+    // while still providing full glyph coverage.
     renderer.insertFont(UI_10_FONT_ID, notosans10FontFamily);
     renderer.insertFont(UI_12_FONT_ID, notosans10FontFamily);
     LOG_INF("MAIN", "UI fonts: Noto Sans 8/10/10 for language %s", I18N.getLanguageName(lang));
     return;
   }
 
-  renderer.insertFont(SMALL_FONT_ID, smallUbuntuFontFamily);
   renderer.insertFont(UI_10_FONT_ID, ui10FontFamily);
   renderer.insertFont(UI_12_FONT_ID, ui12FontFamily);
-  LOG_INF("MAIN", "UI fonts: Ubuntu 8/10/12 for language %s", I18N.getLanguageName(lang));
+#endif
+
+  LOG_INF("MAIN", "UI fonts: default UI stack for language %s", I18N.getLanguageName(lang));
 }
 
 }  // namespace
 
 void refreshUiFontsForCurrentLanguage() { applyUiFontsForLanguage(I18N.getLanguage()); }
+
+// measurement of power button press duration calibration value
+unsigned long t1 = 0;
+unsigned long t2 = 0;
+
+// Verify power button press duration on wake-up from deep sleep
+// Pre-condition: isWakeupByPowerButton() == true
+void verifyPowerButtonDuration() {
+  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP) {
+    // Fast path for short press
+    // Needed because inputManager.isPressed() may take up to ~500ms to return the correct state
+    return;
+  }
+
+  // Give the user up to 1000ms to start holding the power button, and must hold for SETTINGS.getPowerButtonDuration()
+  const auto start = millis();
+  bool abort = false;
+  // Subtract the current time, because inputManager only starts counting the HeldTime from the first update()
+  // This way, we remove the time we already took to reach here from the duration,
+  // assuming the button was held until now from millis()==0 (i.e. device start time).
+  const uint16_t calibration = start;
+  const uint16_t calibratedPressDuration =
+      (calibration < SETTINGS.getPowerButtonDuration()) ? SETTINGS.getPowerButtonDuration() - calibration : 1;
+
+  gpio.update();
+  // Needed because inputManager.isPressed() may take up to ~500ms to return the correct state
+  while (!gpio.isPressed(HalGPIO::BTN_POWER) && millis() - start < 1000) {
+    delay(10);  // only wait 10ms each iteration to not delay too much in case of short configured duration.
+    gpio.update();
+  }
+
+  t2 = millis();
+  if (gpio.isPressed(HalGPIO::BTN_POWER)) {
+    do {
+      delay(10);
+      gpio.update();
+    } while (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getHeldTime() < calibratedPressDuration);
+    abort = gpio.getHeldTime() < calibratedPressDuration;
+  } else {
+    abort = true;
+  }
+
+  if (abort) {
+    // Button released too early. Returning to sleep.
+    // IMPORTANT: Re-arm the wakeup trigger before sleeping again
+    powerManager.startDeepSleep(gpio);
+  }
+}
 void waitForPowerRelease() {
   gpio.update();
   while (gpio.isPressed(HalGPIO::BTN_POWER)) {
@@ -253,16 +287,16 @@ void setup() {
   powerManager.begin();
 
 #ifdef ENABLE_SERIAL_LOG
-  // Only wait briefly for serial on debug builds.
   if (gpio.isUsbConnected()) {
     Serial.begin(115200);
-    // Keep the timeout short so USB power does not noticeably slow wake/boot.
-    unsigned long start = millis();
+    const unsigned long start = millis();
     while (!Serial && (millis() - start) < 500) {
       delay(10);
     }
   }
 #endif
+
+  LOG_INF("MAIN", "Hardware detect: %s", gpio.deviceIsX3() ? "X3" : "X4");
 
   // SD Card Initialization
   // We need 6 open files concurrently when parsing a new chapter
@@ -280,9 +314,7 @@ void setup() {
   KOREADER_STORE.loadFromFile();
   UITheme::getInstance().reload();
   ButtonNavigator::setMappedInputManager(mappedInputManager);
-  TimeUtils::configureTimezone();
 
-  LOG_INF("MAIN", "Hardware detect: %s", gpio.deviceIsX3() ? "X3" : "X4");
   const auto wakeupReason = gpio.getWakeupReason();
   switch (wakeupReason) {
     case HalGPIO::WakeupReason::PowerButton:
@@ -303,14 +335,15 @@ void setup() {
   }
 
   // First serial output only here to avoid timing inconsistencies for power button press duration verification
-  LOG_DBG("MAIN", "Starting CrossPoint version " CROSSPOINT_VERSION_DISPLAY);
+  LOG_DBG("MAIN", "Starting CrossPoint version " CROSSPOINT_VERSION);
 
   setupDisplayAndFonts();
+
   activityManager.goToBoot();
 
   APP_STATE.loadFromFile();
-  RECENT_BOOKS.loadFromFile();
   READING_STATS.loadFromFile();
+  RECENT_BOOKS.loadFromFile();
   ACHIEVEMENTS.loadFromFile();
 
   const bool countUsefulStart =
@@ -321,8 +354,6 @@ void setup() {
     // If we rebooted from a panic, go to crash report screen to show the panic info
     activityManager.goToCrashReport();
   } else {
-    // Boot to home screen if no book is open, last sleep was not from reader, back button is held, or reader activity
-    // crashed (indicated by readerActivityLoadCount > 0)
     const bool bootToHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
                             mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
                             APP_STATE.readerActivityLoadCount > 0;
@@ -358,13 +389,8 @@ void loop() {
   gpio.update();
 
   renderer.setFadingFix(SETTINGS.fadingFix);
-  {
-    static uint8_t lastDarkMode = 0xFF;
-    if (SETTINGS.darkMode != lastDarkMode) {
-      renderer.setDarkMode(SETTINGS.darkMode);
-      lastDarkMode = SETTINGS.darkMode;
-    }
-  }
+  renderer.setDarkMode(SETTINGS.darkMode);
+  renderer.setTextDarkness(SETTINGS.textDarkness);
 
   if (Serial && millis() - lastMemPrint >= 10000) {
     LOG_INF("MEM", "Free: %d bytes, Total: %d bytes, Min Free: %d bytes, MaxAlloc: %d bytes", ESP.getFreeHeap(),

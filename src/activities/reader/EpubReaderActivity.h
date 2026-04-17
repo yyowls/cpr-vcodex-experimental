@@ -15,6 +15,8 @@ class EpubReaderActivity final : public Activity {
   // Set when navigating to a footnote href with a fragment (e.g. #note1).
   // Cleared on the next render after the new section loads and resolves it to a page.
   std::string pendingAnchor;
+  int initialBookmarkSpineIndex = -1;
+  int initialBookmarkPage = -1;
   int pagesUntilFullRefresh = 0;
   int cachedSpineIndex = 0;
   int cachedChapterTotalPageCount = 0;
@@ -25,16 +27,11 @@ class EpubReaderActivity final : public Activity {
   bool pendingPercentJump = false;
   // Normalized 0.0-1.0 progress within the target spine item, computed from book percentage.
   float pendingSpineProgress = 0.0f;
+  std::string stableBookId;
+  BookmarkStore bookmarkStore;
   bool pendingScreenshot = false;
   bool skipNextButtonCheck = false;  // Skip button processing for one frame after subactivity exit
   bool automaticPageTurnActive = false;
-  bool pendingPowerSingleClick = false;
-  bool pendingManualFullRefresh = false;
-  int initialBookmarkSpineIndex = -1;
-  int initialBookmarkPage = -1;
-  unsigned long pendingPowerReleaseMs = 0UL;
-  std::string stableBookId;
-  BookmarkStore bookmarkStore;
 
   // Footnote support
   std::vector<FootnoteEntry> currentPageFootnotes;
@@ -47,8 +44,9 @@ class EpubReaderActivity final : public Activity {
   int footnoteDepth = 0;
 
   void renderContents(std::unique_ptr<Page> page, int orientedMarginTop, int orientedMarginRight,
-                      int orientedMarginBottom, int orientedMarginLeft, bool forceFullRefresh);
+                      int orientedMarginBottom, int orientedMarginLeft);
   void renderStatusBar() const;
+  void silentIndexNextChapterIfNeeded(uint16_t viewportWidth, uint16_t viewportHeight);
   void saveProgress(int spineIndex, int currentPage, int pageCount);
   // Jump to a percentage of the book (0-100), mapping it to spine and page.
   void jumpToPercent(int percent);

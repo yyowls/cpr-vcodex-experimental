@@ -137,10 +137,10 @@ void ActivityManager::loop() {
 
   if (requestedUpdate) {
     requestedUpdate = false;
-    // Coalesce multiple update requests into a single pending render.
-    // This reduces redundant e-ink refreshes during activity transitions.
+    // Using direct notification to signal the render task to update
+    // Increment counter so multiple rapid calls won't be lost
     if (renderTaskHandle) {
-      xTaskNotify(renderTaskHandle, 1, eSetBits);
+      xTaskNotify(renderTaskHandle, 1, eIncrement);
     }
   }
 }
@@ -240,7 +240,7 @@ bool ActivityManager::skipLoopDelay() const { return currentActivity && currentA
 void ActivityManager::requestUpdate(bool immediate) {
   if (immediate) {
     if (renderTaskHandle) {
-      xTaskNotify(renderTaskHandle, 1, eSetBits);
+      xTaskNotify(renderTaskHandle, 1, eIncrement);
     }
   } else {
     // Deferring the update until current loop is finished

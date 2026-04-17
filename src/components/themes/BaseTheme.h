@@ -21,6 +21,7 @@ struct Rect {
 struct TabInfo {
   const char* label;
   bool selected;
+  bool compact = false;
 };
 
 struct ThemeMetrics {
@@ -64,7 +65,7 @@ struct ThemeMetrics {
   bool keyboardCenteredText;
 };
 
-enum UIIcon { Folder, Text, Image, Book, File, Recent, Settings, Transfer, Library, Wifi, Hotspot };
+enum UIIcon { Folder, Text, Image, Book, File, Recent, Settings, Transfer, Library, Trophy, Wifi, Hotspot };
 
 // Default theme implementation (Classic Theme)
 // Additional themes can inherit from this and override methods as needed
@@ -122,8 +123,8 @@ class BaseTheme {
                         const std::function<std::string(int index)>& rowValue = nullptr,
                         bool highlightValue = false,
                         const std::function<bool(int index)>& rowCompleted = nullptr) const;
-  virtual void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle = nullptr,
-                          const char* titleDetail = nullptr) const;
+  virtual void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title,
+                          const char* subtitle = nullptr) const;
   virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
                              const char* rightLabel = nullptr) const;
   virtual void drawTabBar(const GfxRenderer& renderer, Rect rect, const std::vector<TabInfo>& tabs,
@@ -144,4 +145,10 @@ class BaseTheme {
   virtual void drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label) const;
   virtual void drawTextField(const GfxRenderer& renderer, Rect rect, const int textWidth) const;
   virtual void drawKeyboardKey(const GfxRenderer& renderer, Rect rect, const char* label, const bool isSelected) const;
+  virtual bool showsFileIcons() const { return false; }
+
+  // Shared constants and helpers for battery drawing (used by all themes)
+  static constexpr int batteryPercentSpacing = 4;
+  static void drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight);
+  static void drawBatteryLightningBolt(const GfxRenderer& renderer, int boltX, int boltY);
 };

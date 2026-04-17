@@ -13,8 +13,8 @@
 #include "ReadingDayDetailActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "util/ReadingStatsAnalytics.h"
 #include "util/HeaderDateUtils.h"
+#include "util/ReadingStatsAnalytics.h"
 #include "util/TimeUtils.h"
 
 namespace {
@@ -42,9 +42,7 @@ struct MonthSummary {
   unsigned bestDayOfMonth = 0;
 };
 
-bool isLeapYear(const int year) {
-  return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-}
+bool isLeapYear(const int year) { return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0); }
 
 unsigned getDaysInMonth(const int year, const unsigned month) {
   static constexpr unsigned DAYS_PER_MONTH[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
@@ -180,10 +178,8 @@ void drawHeatCell(GfxRenderer& renderer, const Rect& rect, const HeatmapCell& ce
   renderer.drawRect(rect.x, rect.y, rect.width, rect.height);
 
   const std::string dayText = cell.day == 0 ? "" : std::to_string(cell.day);
-  const int dayTextX = rect.x + 6;
-  const int dayTextY = rect.y + 5;
   if (!dayText.empty()) {
-    renderer.drawText(SMALL_FONT_ID, dayTextX, dayTextY, dayText.c_str(), textBlack,
+    renderer.drawText(SMALL_FONT_ID, rect.x + 6, rect.y + 5, dayText.c_str(), textBlack,
                       cell.inViewedMonth ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
   }
 
@@ -253,7 +249,6 @@ std::array<HeatmapCell, 42> buildHeatmapCells(const int year, const unsigned mon
                                               const uint32_t selectedDayOrdinal) {
   std::array<HeatmapCell, 42> cells{};
   const uint32_t firstDayOrdinal = TimeUtils::getDayOrdinalForDate(year, month, 1);
-  const unsigned daysInMonth = getDaysInMonth(year, month);
   const int firstWeekday = static_cast<int>((firstDayOrdinal + 3U) % 7U);  // Monday = 0
   const uint32_t gridStartOrdinal = firstDayOrdinal - static_cast<uint32_t>(firstWeekday);
 
@@ -296,8 +291,7 @@ void drawLegend(GfxRenderer& renderer, const Rect& rect) {
     const int itemX = rect.x + index * itemWidth;
     const Rect swatch{itemX + 6, rect.y + 3, LEGEND_SWATCH_SIZE, LEGEND_SWATCH_SIZE};
     drawLegendSwatch(renderer, swatch, LEVELS[index].level);
-    const int labelX = itemX + 28;
-    renderer.drawText(SMALL_FONT_ID, labelX, rect.y + 6, LEVELS[index].label);
+    renderer.drawText(SMALL_FONT_ID, itemX + 28, rect.y + 6, LEVELS[index].label);
   }
 }
 }  // namespace

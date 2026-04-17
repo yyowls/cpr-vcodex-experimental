@@ -228,9 +228,7 @@ std::string formatAnnualReadingTitle(const int year) {
   return std::string(tr(STR_ANNUAL_READING)) + " (" + std::to_string(year) + ")";
 }
 
-int getScrollableContentBottom(const GfxRenderer& renderer, const ThemeMetrics& metrics) {
-  (void)renderer;
-  (void)metrics;
+int getScrollableContentBottom(const GfxRenderer&, const ThemeMetrics&) {
   return CHART_HEADER_HEIGHT + CHART_TOP_GAP + CHART_HEIGHT + CHART_SECTION_GAP + CHART_HEADER_HEIGHT +
          CHART_TOP_GAP + CHART_HEIGHT;
 }
@@ -258,6 +256,7 @@ void drawReadingChart(GfxRenderer& renderer, const Rect& rect, const std::vector
   const int baselineY = rect.y + rect.height - bottomLabelAreaHeight - bottomGap - 2;
   const int bottomLabelY = baselineY + bottomGap;
   const int chartHeight = std::max(1, baselineY - chartTop);
+
   const int barCount = static_cast<int>(bars.size());
   const int barGap = barCount <= 7 ? 7 : 4;
   const int minBarWidth = barCount <= 7 ? 12 : 8;

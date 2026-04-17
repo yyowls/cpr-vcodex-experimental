@@ -6,6 +6,7 @@
 #include <ObfuscationUtils.h>
 #include <Stream.h>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -15,15 +16,16 @@
 #include "AchievementsStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
+#include "SettingsList.h"
 #include "WifiCredentialStore.h"
-#include "activities/settings/SettingsActivity.h"
 #include "util/BookIdentity.h"
 #include "util/ShortcutRegistry.h"
 #include "util/TimeZoneRegistry.h"
 
 namespace {
-constexpr uint8_t FONT_SIZE_SCHEMA_VERSION = 2;
 constexpr uint8_t FONT_FAMILY_SCHEMA_VERSION = 2;
+constexpr uint8_t FONT_SIZE_SCHEMA_VERSION = 2;
+constexpr uint8_t UI_THEME_SCHEMA_VERSION = 2;
 
 class HalFileStream : public Stream {
  public:
@@ -86,158 +88,39 @@ bool loadJsonDocumentFromFile(const char* moduleName, const char* path, JsonDocu
   return true;
 }
 
-// Keep settings persistence independent from the large shared web/device settings list.
-// Constructing that shared list pulls in many std::function-backed entries that the device
-// does not need just to load/save /.crosspoint/settings.json.
-const std::vector<SettingInfo>& getPersistedSettingsList() {
-  static const std::vector<SettingInfo> list = {
-      SettingInfo::Enum(StrId::STR_SLEEP_SCREEN, &CrossPointSettings::sleepScreen,
-                        {StrId::STR_DARK, StrId::STR_LIGHT, StrId::STR_CUSTOM, StrId::STR_COVER, StrId::STR_NONE_OPT,
-                         StrId::STR_COVER_CUSTOM},
-                        "sleepScreen", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Enum(StrId::STR_SLEEP_COVER_MODE, &CrossPointSettings::sleepScreenCoverMode,
-                        {StrId::STR_FIT, StrId::STR_CROP}, "sleepScreenCoverMode", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Enum(StrId::STR_SLEEP_COVER_FILTER, &CrossPointSettings::sleepScreenCoverFilter,
-                        {StrId::STR_NONE_OPT, StrId::STR_FILTER_CONTRAST, StrId::STR_INVERTED},
-                        "sleepScreenCoverFilter", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Enum(StrId::STR_HIDE_BATTERY, &CrossPointSettings::hideBatteryPercentage,
-                        {StrId::STR_NEVER, StrId::STR_IN_READER, StrId::STR_ALWAYS}, "hideBatteryPercentage",
-                        StrId::STR_CAT_DISPLAY),
-      SettingInfo::Enum(
-          StrId::STR_REFRESH_FREQ, &CrossPointSettings::refreshFrequency,
-          {StrId::STR_PAGES_1, StrId::STR_PAGES_5, StrId::STR_PAGES_10, StrId::STR_PAGES_15, StrId::STR_PAGES_30},
-          "refreshFrequency", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Enum(StrId::STR_UI_THEME, &CrossPointSettings::uiTheme,
-                        {StrId::STR_THEME_CLASSIC, StrId::STR_THEME_LYRA, StrId::STR_THEME_LYRA_EXTENDED,
-                         StrId::STR_THEME_LYRA_CUSTOM},
-                        "uiTheme", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Toggle(StrId::STR_DARK_MODE, &CrossPointSettings::darkMode, "darkMode", StrId::STR_CAT_DISPLAY),
-      SettingInfo::Toggle(StrId::STR_SUNLIGHT_FADING_FIX, &CrossPointSettings::fadingFix, "fadingFix",
-                          StrId::STR_CAT_DISPLAY),
+uint8_t migrateStoredUiTheme(const uint8_t rawUiTheme, const uint8_t schemaVersion, const uint8_t currentDefault,
+                             bool* needsResave) {
+  if (schemaVersion >= UI_THEME_SCHEMA_VERSION) {
+    const uint8_t clampedTheme =
+        rawUiTheme < static_cast<uint8_t>(CrossPointSettings::UI_THEME_COUNT) ? rawUiTheme : currentDefault;
+    if (clampedTheme != rawUiTheme && needsResave) *needsResave = true;
+    return clampedTheme;
+  }
 
-      SettingInfo::Toggle(StrId::STR_DISPLAY_DAY, &CrossPointSettings::displayDay, "displayDay", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_SYNC_DAY_REMINDER_EVERY, &CrossPointSettings::syncDayReminderStarts,
-                        {StrId::STR_STATE_OFF, StrId::STR_NUM_10, StrId::STR_NUM_20, StrId::STR_NUM_30,
-                         StrId::STR_NUM_40, StrId::STR_NUM_50, StrId::STR_NUM_60},
-                        "syncDayReminderStarts", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_DATE_FORMAT, &CrossPointSettings::dateFormat,
-                        {StrId::STR_DATE_FORMAT_DD_MM_YYYY, StrId::STR_DATE_FORMAT_MM_DD_YYYY,
-                         StrId::STR_DATE_FORMAT_YYYY_MM_DD},
-                        "dateFormat", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_DAILY_GOAL, &CrossPointSettings::dailyGoalTarget,
-                        {StrId::STR_MIN_15, StrId::STR_MIN_30, StrId::STR_MIN_45, StrId::STR_MIN_60},
-                        "dailyGoalTarget", StrId::STR_APPS),
-      SettingInfo::Toggle(StrId::STR_SHOW_AFTER_READING, &CrossPointSettings::showStatsAfterReading,
-                          "showStatsAfterReading", StrId::STR_APPS),
-      SettingInfo::Toggle(StrId::STR_ENABLE_ACHIEVEMENTS, &CrossPointSettings::achievementsEnabled,
-                          "achievementsEnabled", StrId::STR_APPS),
-      SettingInfo::Toggle(StrId::STR_ACHIEVEMENT_POPUPS, &CrossPointSettings::achievementPopups,
-                          "achievementPopups", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_BROWSE_FILES, &CrossPointSettings::browseFilesShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "browseFilesShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_STATS_SHORTCUT, &CrossPointSettings::statsShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "statsShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_SYNC_DAY, &CrossPointSettings::syncDayShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "syncDayShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_SETTINGS_TITLE, &CrossPointSettings::settingsShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "settingsShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_READING_STATS, &CrossPointSettings::readingStatsShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "readingStatsShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_READING_HEATMAP, &CrossPointSettings::readingHeatmapShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "readingHeatmapShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_READING_PROFILE, &CrossPointSettings::readingProfileShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "readingProfileShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_ACHIEVEMENTS, &CrossPointSettings::achievementsShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "achievementsShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_IF_FOUND_RETURN_ME, &CrossPointSettings::ifFoundShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "ifFoundShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_README, &CrossPointSettings::readMeShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "readMeShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_MENU_RECENT_BOOKS, &CrossPointSettings::recentBooksShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "recentBooksShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_BOOKMARKS, &CrossPointSettings::bookmarksShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "bookmarksShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_FILE_TRANSFER, &CrossPointSettings::fileTransferShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "fileTransferShortcut", StrId::STR_APPS),
-      SettingInfo::Enum(StrId::STR_SLEEP, &CrossPointSettings::sleepShortcut,
-                        {StrId::STR_HOME_LOCATION, StrId::STR_APPS}, "sleepShortcut", StrId::STR_APPS),
+  // Legacy/theme-consolidation migration:
+  // - 0 (Classic) -> Lyra
+  // - 2/3 (Extended/Custom) -> Lyra vCodex
+  // - 1 is ambiguous: in the current 2-theme schema it already means Lyra vCodex,
+  //   while in older schemas it meant Lyra. Prefer preserving the newer stored value.
+  uint8_t migratedTheme = currentDefault;
+  switch (rawUiTheme) {
+    case 0:
+      migratedTheme = CrossPointSettings::LYRA;
+      break;
+    case 1:
+      migratedTheme = CrossPointSettings::LYRA_CUSTOM;
+      break;
+    case 2:
+    case 3:
+      migratedTheme = CrossPointSettings::LYRA_CUSTOM;
+      break;
+    default:
+      migratedTheme = currentDefault;
+      break;
+  }
 
-      SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
-                        {StrId::STR_BOOKERLY, StrId::STR_NOTO_SANS, StrId::STR_LEXEND}, "fontFamily",
-                        StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_FONT_SIZE, &CrossPointSettings::fontSize,
-                        {StrId::STR_X_SMALL, StrId::STR_SMALL, StrId::STR_MEDIUM, StrId::STR_LARGE,
-                         StrId::STR_X_LARGE},
-                        "fontSize", StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_LINE_SPACING, &CrossPointSettings::lineSpacing,
-                        {StrId::STR_TIGHT, StrId::STR_NORMAL, StrId::STR_WIDE}, "lineSpacing", StrId::STR_CAT_READER),
-      SettingInfo::Value(StrId::STR_SCREEN_MARGIN, &CrossPointSettings::screenMargin, {5, 40, 5}, "screenMargin",
-                         StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_PARA_ALIGNMENT, &CrossPointSettings::paragraphAlignment,
-                        {StrId::STR_JUSTIFY, StrId::STR_ALIGN_LEFT, StrId::STR_CENTER, StrId::STR_ALIGN_RIGHT,
-                         StrId::STR_BOOK_S_STYLE},
-                        "paragraphAlignment", StrId::STR_CAT_READER),
-      SettingInfo::Toggle(StrId::STR_EMBEDDED_STYLE, &CrossPointSettings::embeddedStyle, "embeddedStyle",
-                          StrId::STR_CAT_READER),
-      SettingInfo::Toggle(StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled, "hyphenationEnabled",
-                          StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
-                        {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW},
-                        "orientation", StrId::STR_CAT_READER),
-      SettingInfo::Toggle(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacing,
-                          "extraParagraphSpacing", StrId::STR_CAT_READER),
-      SettingInfo::Toggle(StrId::STR_TEXT_AA, &CrossPointSettings::textAntiAliasing, "textAntiAliasing",
-                          StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_TEXT_DARKNESS, &CrossPointSettings::textDarkness,
-                        {StrId::STR_NORMAL, StrId::STR_DARK, StrId::STR_EXTRA_DARK}, "textDarkness",
-                        StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_IMAGES, &CrossPointSettings::imageRendering,
-                        {StrId::STR_IMAGES_DISPLAY, StrId::STR_IMAGES_PLACEHOLDER, StrId::STR_IMAGES_SUPPRESS},
-                        "imageRendering", StrId::STR_CAT_READER),
-      SettingInfo::Enum(StrId::STR_READER_REFRESH_MODE, &CrossPointSettings::readerRefreshMode,
-                        {StrId::STR_REFRESH_MODE_AUTO, StrId::STR_REFRESH_MODE_FAST, StrId::STR_REFRESH_MODE_HALF,
-                         StrId::STR_REFRESH_MODE_FULL},
-                        "readerRefreshMode", StrId::STR_CAT_READER),
-
-      SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,
-                        {StrId::STR_PREV_NEXT, StrId::STR_NEXT_PREV}, "sideButtonLayout", StrId::STR_CAT_CONTROLS),
-      SettingInfo::Toggle(StrId::STR_LONG_PRESS_SKIP, &CrossPointSettings::longPressChapterSkip,
-                          "longPressChapterSkip", StrId::STR_CAT_CONTROLS),
-      SettingInfo::Enum(StrId::STR_SHORT_PWR_BTN, &CrossPointSettings::shortPwrBtn,
-                        {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_PAGE_TURN}, "shortPwrBtn",
-                        StrId::STR_CAT_CONTROLS),
-
-      SettingInfo::Enum(StrId::STR_TIME_TO_SLEEP, &CrossPointSettings::sleepTimeout,
-                        {StrId::STR_MIN_1, StrId::STR_MIN_5, StrId::STR_MIN_10, StrId::STR_MIN_15, StrId::STR_MIN_30},
-                        "sleepTimeout", StrId::STR_CAT_SYSTEM),
-      SettingInfo::Toggle(StrId::STR_SHOW_HIDDEN_FILES, &CrossPointSettings::showHiddenFiles, "showHiddenFiles",
-                          StrId::STR_CAT_SYSTEM),
-
-      SettingInfo::String(StrId::STR_OPDS_SERVER_URL, SETTINGS.opdsServerUrl, sizeof(SETTINGS.opdsServerUrl),
-                          "opdsServerUrl", StrId::STR_OPDS_BROWSER),
-      SettingInfo::String(StrId::STR_USERNAME, SETTINGS.opdsUsername, sizeof(SETTINGS.opdsUsername), "opdsUsername",
-                          StrId::STR_OPDS_BROWSER),
-      SettingInfo::String(StrId::STR_PASSWORD, SETTINGS.opdsPassword, sizeof(SETTINGS.opdsPassword), "opdsPassword",
-                          StrId::STR_OPDS_BROWSER)
-          .withObfuscated(),
-
-      SettingInfo::Toggle(StrId::STR_CHAPTER_PAGE_COUNT, &CrossPointSettings::statusBarChapterPageCount,
-                          "statusBarChapterPageCount", StrId::STR_CUSTOMISE_STATUS_BAR),
-      SettingInfo::Toggle(StrId::STR_BOOK_PROGRESS_PERCENTAGE, &CrossPointSettings::statusBarBookProgressPercentage,
-                          "statusBarBookProgressPercentage", StrId::STR_CUSTOMISE_STATUS_BAR),
-      SettingInfo::Enum(StrId::STR_PROGRESS_BAR, &CrossPointSettings::statusBarProgressBar,
-                        {StrId::STR_BOOK, StrId::STR_CHAPTER, StrId::STR_HIDE}, "statusBarProgressBar",
-                        StrId::STR_CUSTOMISE_STATUS_BAR),
-      SettingInfo::Enum(StrId::STR_PROGRESS_BAR_THICKNESS, &CrossPointSettings::statusBarProgressBarThickness,
-                        {StrId::STR_PROGRESS_BAR_THIN, StrId::STR_PROGRESS_BAR_MEDIUM, StrId::STR_PROGRESS_BAR_THICK},
-                        "statusBarProgressBarThickness", StrId::STR_CUSTOMISE_STATUS_BAR),
-      SettingInfo::Enum(StrId::STR_TITLE, &CrossPointSettings::statusBarTitle,
-                        {StrId::STR_BOOK, StrId::STR_CHAPTER, StrId::STR_HIDE}, "statusBarTitle",
-                        StrId::STR_CUSTOMISE_STATUS_BAR),
-      SettingInfo::Toggle(StrId::STR_BATTERY, &CrossPointSettings::statusBarBattery, "statusBarBattery",
-                          StrId::STR_CUSTOMISE_STATUS_BAR),
-  };
-  return list;
+  if (migratedTheme != rawUiTheme && needsResave) *needsResave = true;
+  return migratedTheme;
 }
 }  // namespace
 
@@ -290,18 +173,248 @@ void applyLegacyStatusBarSettings(CrossPointSettings& settings) {
   }
 }
 
+bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* needsResave) {
+  auto clamp = [](uint8_t val, uint8_t maxVal, uint8_t def) -> uint8_t { return val < maxVal ? val : def; };
+  auto loadToggle = [&](const char* key, uint8_t& field) {
+    field = clamp(doc[key] | field, static_cast<uint8_t>(2), field);
+  };
+  auto loadEnum = [&](const char* key, uint8_t& field, const uint8_t count) { field = clamp(doc[key] | field, count, field); };
+  auto loadValue = [&](const char* key, uint8_t& field, const uint8_t minValue, const uint8_t maxValue) {
+    uint8_t value = doc[key] | field;
+    if (value < minValue) {
+      value = minValue;
+    } else if (value > maxValue) {
+      value = maxValue;
+    }
+    field = value;
+  };
+  auto loadString = [&](const char* key, char* dest, const size_t maxLen) {
+    const std::string value = doc[key] | std::string(dest);
+    strncpy(dest, value.c_str(), maxLen - 1);
+    dest[maxLen - 1] = '\0';
+  };
+
+  if (doc["statusBarChapterPageCount"].isNull()) {
+    applyLegacyStatusBarSettings(s);
+  }
+
+  loadEnum("sleepScreen", s.sleepScreen, CrossPointSettings::SLEEP_SCREEN_MODE_COUNT);
+  loadEnum("sleepScreenCoverMode", s.sleepScreenCoverMode, CrossPointSettings::SLEEP_SCREEN_COVER_MODE_COUNT);
+  loadEnum("sleepScreenCoverFilter", s.sleepScreenCoverFilter, CrossPointSettings::SLEEP_SCREEN_COVER_FILTER_COUNT);
+  loadEnum("hideBatteryPercentage", s.hideBatteryPercentage, CrossPointSettings::HIDE_BATTERY_PERCENTAGE_COUNT);
+  loadEnum("refreshFrequency", s.refreshFrequency, CrossPointSettings::REFRESH_FREQUENCY_COUNT);
+  {
+    const uint8_t rawUiTheme = doc["uiTheme"] | s.uiTheme;
+    const uint8_t uiThemeSchemaVersion = doc["uiThemeSchemaVersion"] | static_cast<uint8_t>(0);
+    s.uiTheme = migrateStoredUiTheme(rawUiTheme, uiThemeSchemaVersion, s.uiTheme, needsResave);
+  }
+  loadToggle("fadingFix", s.fadingFix);
+  loadToggle("darkMode", s.darkMode);
+
+  const uint8_t rawFontFamily = doc["fontFamily"] | s.fontFamily;
+  if (rawFontFamily >= static_cast<uint8_t>(CrossPointSettings::FONT_FAMILY_COUNT)) {
+    s.fontFamily = CrossPointSettings::BOOKERLY;
+    if (needsResave) *needsResave = true;
+  } else {
+    s.fontFamily = rawFontFamily;
+  }
+
+  loadEnum("fontSize", s.fontSize, CrossPointSettings::FONT_SIZE_COUNT);
+  const uint8_t fontSizeSchemaVersion = doc["fontSizeSchemaVersion"] | static_cast<uint8_t>(0);
+  if (fontSizeSchemaVersion < FONT_SIZE_SCHEMA_VERSION && !doc["fontSize"].isNull()) {
+    const uint8_t legacyFontSize = doc["fontSize"] | static_cast<uint8_t>(CrossPointSettings::MEDIUM - 1);
+    if (legacyFontSize < static_cast<uint8_t>(CrossPointSettings::EXTRA_LARGE)) {
+      s.fontSize = static_cast<uint8_t>(legacyFontSize + 1);
+      if (needsResave) *needsResave = true;
+    }
+  }
+
+  loadEnum("lineSpacing", s.lineSpacing, CrossPointSettings::LINE_COMPRESSION_COUNT);
+  loadValue("screenMargin", s.screenMargin, 5, 40);
+  loadEnum("paragraphAlignment", s.paragraphAlignment, CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT);
+  loadToggle("embeddedStyle", s.embeddedStyle);
+  loadToggle("hyphenationEnabled", s.hyphenationEnabled);
+  loadEnum("orientation", s.orientation, CrossPointSettings::ORIENTATION_COUNT);
+  loadToggle("extraParagraphSpacing", s.extraParagraphSpacing);
+  loadToggle("textAntiAliasing", s.textAntiAliasing);
+  loadEnum("textDarkness", s.textDarkness, CrossPointSettings::TEXT_DARKNESS_COUNT);
+  loadEnum("readerRefreshMode", s.readerRefreshMode, CrossPointSettings::READER_REFRESH_MODE_COUNT);
+  loadEnum("imageRendering", s.imageRendering, CrossPointSettings::IMAGE_RENDERING_COUNT);
+
+  loadEnum("sideButtonLayout", s.sideButtonLayout, CrossPointSettings::SIDE_BUTTON_LAYOUT_COUNT);
+  loadToggle("longPressChapterSkip", s.longPressChapterSkip);
+  loadEnum("shortPwrBtn", s.shortPwrBtn, CrossPointSettings::SHORT_PWRBTN_COUNT);
+  loadEnum("sleepTimeout", s.sleepTimeout, CrossPointSettings::SLEEP_TIMEOUT_COUNT);
+  loadToggle("showHiddenFiles", s.showHiddenFiles);
+
+  loadString("opdsServerUrl", s.opdsServerUrl, sizeof(s.opdsServerUrl));
+  loadString("opdsUsername", s.opdsUsername, sizeof(s.opdsUsername));
+  {
+    bool ok = false;
+    std::string password = obfuscation::deobfuscateFromBase64(doc["opdsPassword_obf"] | "", &ok);
+    if (!ok || password.empty()) {
+      password = doc["opdsPassword"] | std::string(s.opdsPassword);
+      if (password != s.opdsPassword && needsResave) *needsResave = true;
+    }
+    strncpy(s.opdsPassword, password.c_str(), sizeof(s.opdsPassword) - 1);
+    s.opdsPassword[sizeof(s.opdsPassword) - 1] = '\0';
+  }
+
+  loadToggle("statusBarChapterPageCount", s.statusBarChapterPageCount);
+  loadToggle("statusBarBookProgressPercentage", s.statusBarBookProgressPercentage);
+  loadEnum("statusBarProgressBar", s.statusBarProgressBar, CrossPointSettings::STATUS_BAR_PROGRESS_BAR_COUNT);
+  loadEnum("statusBarProgressBarThickness", s.statusBarProgressBarThickness,
+           CrossPointSettings::STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT);
+  loadEnum("statusBarTitle", s.statusBarTitle, CrossPointSettings::STATUS_BAR_TITLE_COUNT);
+  loadToggle("statusBarBattery", s.statusBarBattery);
+
+  using S = CrossPointSettings;
+  s.frontButtonBack =
+      clamp(doc["frontButtonBack"] | (uint8_t)S::FRONT_HW_BACK, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_BACK);
+  s.frontButtonConfirm = clamp(doc["frontButtonConfirm"] | (uint8_t)S::FRONT_HW_CONFIRM, S::FRONT_BUTTON_HARDWARE_COUNT,
+                               S::FRONT_HW_CONFIRM);
+  s.frontButtonLeft =
+      clamp(doc["frontButtonLeft"] | (uint8_t)S::FRONT_HW_LEFT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_LEFT);
+  s.frontButtonRight =
+      clamp(doc["frontButtonRight"] | (uint8_t)S::FRONT_HW_RIGHT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_RIGHT);
+  s.displayDay = clamp(doc["displayDay"] | s.displayDay, static_cast<uint8_t>(2), s.displayDay);
+  s.autoSyncDay = clamp(doc["autoSyncDay"] | s.autoSyncDay, static_cast<uint8_t>(2), s.autoSyncDay);
+  s.syncDayReminderStarts =
+      clamp(doc["syncDayReminderStarts"] | s.syncDayReminderStarts, S::SYNC_DAY_REMINDER_STARTS_COUNT,
+            s.syncDayReminderStarts);
+  {
+    const std::string sleepDirectory = doc["sleepDirectory"] | std::string("");
+    strncpy(s.sleepDirectory, sleepDirectory.c_str(), sizeof(s.sleepDirectory) - 1);
+    s.sleepDirectory[sizeof(s.sleepDirectory) - 1] = '\0';
+  }
+  s.sleepImageOrder = clamp(doc["sleepImageOrder"] | static_cast<uint8_t>(S::SLEEP_IMAGE_SHUFFLE),
+                            S::SLEEP_IMAGE_ORDER_COUNT, S::SLEEP_IMAGE_SHUFFLE);
+  s.timeZonePreset =
+      TimeZoneRegistry::clampPresetIndex(doc["timeZonePreset"] | TimeZoneRegistry::DEFAULT_TIME_ZONE_INDEX);
+  s.dateFormat = clamp(doc["dateFormat"] | s.dateFormat, S::DATE_FORMAT_COUNT, s.dateFormat);
+  s.dailyGoalTarget = clamp(doc["dailyGoalTarget"] | s.dailyGoalTarget, S::DAILY_GOAL_TARGET_COUNT, s.dailyGoalTarget);
+  s.showStatsAfterReading =
+      clamp(doc["showStatsAfterReading"] | s.showStatsAfterReading, static_cast<uint8_t>(2), s.showStatsAfterReading);
+  s.achievementsEnabled =
+      clamp(doc["achievementsEnabled"] | s.achievementsEnabled, static_cast<uint8_t>(2), s.achievementsEnabled);
+  s.achievementPopups =
+      clamp(doc["achievementPopups"] | s.achievementPopups, static_cast<uint8_t>(2), s.achievementPopups);
+
+  const uint8_t shortcutLocationCount = S::SHORTCUT_LOCATION_COUNT;
+  const uint8_t shortcutOrderCount = static_cast<uint8_t>(getShortcutDefinitions().size() + 1);
+  s.appsHubShortcutOrder = clamp(doc["appsHubShortcutOrder"] | s.appsHubShortcutOrder, shortcutOrderCount,
+                                 s.appsHubShortcutOrder);
+  s.browseFilesShortcut =
+      clamp(doc["browseFilesShortcut"] | s.browseFilesShortcut, shortcutLocationCount, s.browseFilesShortcut);
+  s.browseFilesShortcutOrder = clamp(doc["browseFilesShortcutOrder"] | s.browseFilesShortcutOrder, shortcutOrderCount,
+                                     s.browseFilesShortcutOrder);
+  s.statsShortcut = clamp(doc["statsShortcut"] | s.statsShortcut, shortcutLocationCount, s.statsShortcut);
+  s.statsShortcutOrder =
+      clamp(doc["statsShortcutOrder"] | s.statsShortcutOrder, shortcutOrderCount, s.statsShortcutOrder);
+  s.syncDayShortcut = clamp(doc["syncDayShortcut"] | s.syncDayShortcut, shortcutLocationCount, s.syncDayShortcut);
+  s.syncDayShortcutOrder =
+      clamp(doc["syncDayShortcutOrder"] | s.syncDayShortcutOrder, shortcutOrderCount, s.syncDayShortcutOrder);
+  s.settingsShortcut = clamp(doc["settingsShortcut"] | s.settingsShortcut, shortcutLocationCount, s.settingsShortcut);
+  s.settingsShortcutOrder =
+      clamp(doc["settingsShortcutOrder"] | s.settingsShortcutOrder, shortcutOrderCount, s.settingsShortcutOrder);
+  s.readingStatsShortcut =
+      clamp(doc["readingStatsShortcut"] | s.readingStatsShortcut, shortcutLocationCount, s.readingStatsShortcut);
+  s.readingStatsShortcutOrder = clamp(doc["readingStatsShortcutOrder"] | s.readingStatsShortcutOrder,
+                                      shortcutOrderCount, s.readingStatsShortcutOrder);
+  s.readingHeatmapShortcut = clamp(doc["readingHeatmapShortcut"] | s.readingHeatmapShortcut, shortcutLocationCount,
+                                   s.readingHeatmapShortcut);
+  s.readingHeatmapShortcutOrder = clamp(doc["readingHeatmapShortcutOrder"] | s.readingHeatmapShortcutOrder,
+                                        shortcutOrderCount, s.readingHeatmapShortcutOrder);
+  s.readingProfileShortcut = clamp(doc["readingProfileShortcut"] | s.readingProfileShortcut, shortcutLocationCount,
+                                   s.readingProfileShortcut);
+  s.readingProfileShortcutOrder = clamp(doc["readingProfileShortcutOrder"] | s.readingProfileShortcutOrder,
+                                        shortcutOrderCount, s.readingProfileShortcutOrder);
+  s.achievementsShortcut =
+      clamp(doc["achievementsShortcut"] | s.achievementsShortcut, shortcutLocationCount, s.achievementsShortcut);
+  s.achievementsShortcutOrder = clamp(doc["achievementsShortcutOrder"] | s.achievementsShortcutOrder,
+                                      shortcutOrderCount, s.achievementsShortcutOrder);
+  s.ifFoundShortcut = clamp(doc["ifFoundShortcut"] | s.ifFoundShortcut, shortcutLocationCount, s.ifFoundShortcut);
+  s.ifFoundShortcutOrder =
+      clamp(doc["ifFoundShortcutOrder"] | s.ifFoundShortcutOrder, shortcutOrderCount, s.ifFoundShortcutOrder);
+  s.readMeShortcut = clamp(doc["readMeShortcut"] | s.readMeShortcut, shortcutLocationCount, s.readMeShortcut);
+  s.readMeShortcutOrder =
+      clamp(doc["readMeShortcutOrder"] | s.readMeShortcutOrder, shortcutOrderCount, s.readMeShortcutOrder);
+  s.recentBooksShortcut =
+      clamp(doc["recentBooksShortcut"] | s.recentBooksShortcut, shortcutLocationCount, s.recentBooksShortcut);
+  s.recentBooksShortcutOrder = clamp(doc["recentBooksShortcutOrder"] | s.recentBooksShortcutOrder, shortcutOrderCount,
+                                     s.recentBooksShortcutOrder);
+  s.bookmarksShortcut =
+      clamp(doc["bookmarksShortcut"] | s.bookmarksShortcut, shortcutLocationCount, s.bookmarksShortcut);
+  s.bookmarksShortcutOrder =
+      clamp(doc["bookmarksShortcutOrder"] | s.bookmarksShortcutOrder, shortcutOrderCount, s.bookmarksShortcutOrder);
+  s.fileTransferShortcut =
+      clamp(doc["fileTransferShortcut"] | s.fileTransferShortcut, shortcutLocationCount, s.fileTransferShortcut);
+  s.fileTransferShortcutOrder = clamp(doc["fileTransferShortcutOrder"] | s.fileTransferShortcutOrder,
+                                      shortcutOrderCount, s.fileTransferShortcutOrder);
+  s.sleepShortcut = clamp(doc["sleepShortcut"] | s.sleepShortcut, shortcutLocationCount, s.sleepShortcut);
+  s.sleepShortcutOrder =
+      clamp(doc["sleepShortcutOrder"] | s.sleepShortcutOrder, shortcutOrderCount, s.sleepShortcutOrder);
+
+  s.browseFilesShortcutVisible =
+      clamp(doc["browseFilesShortcutVisible"] | s.browseFilesShortcutVisible, static_cast<uint8_t>(2),
+            s.browseFilesShortcutVisible);
+  s.statsShortcutVisible =
+      clamp(doc["statsShortcutVisible"] | s.statsShortcutVisible, static_cast<uint8_t>(2), s.statsShortcutVisible);
+  s.syncDayShortcutVisible =
+      clamp(doc["syncDayShortcutVisible"] | s.syncDayShortcutVisible, static_cast<uint8_t>(2), s.syncDayShortcutVisible);
+  s.settingsShortcutVisible =
+      clamp(doc["settingsShortcutVisible"] | s.settingsShortcutVisible, static_cast<uint8_t>(2),
+            s.settingsShortcutVisible);
+  s.readingStatsShortcutVisible =
+      clamp(doc["readingStatsShortcutVisible"] | s.readingStatsShortcutVisible, static_cast<uint8_t>(2),
+            s.readingStatsShortcutVisible);
+  s.readingHeatmapShortcutVisible =
+      clamp(doc["readingHeatmapShortcutVisible"] | s.readingHeatmapShortcutVisible, static_cast<uint8_t>(2),
+            s.readingHeatmapShortcutVisible);
+  s.readingProfileShortcutVisible =
+      clamp(doc["readingProfileShortcutVisible"] | s.readingProfileShortcutVisible, static_cast<uint8_t>(2),
+            s.readingProfileShortcutVisible);
+  s.achievementsShortcutVisible =
+      clamp(doc["achievementsShortcutVisible"] | s.achievementsShortcutVisible, static_cast<uint8_t>(2),
+            s.achievementsShortcutVisible);
+  s.ifFoundShortcutVisible =
+      clamp(doc["ifFoundShortcutVisible"] | s.ifFoundShortcutVisible, static_cast<uint8_t>(2),
+            s.ifFoundShortcutVisible);
+  s.readMeShortcutVisible =
+      clamp(doc["readMeShortcutVisible"] | s.readMeShortcutVisible, static_cast<uint8_t>(2), s.readMeShortcutVisible);
+  s.recentBooksShortcutVisible =
+      clamp(doc["recentBooksShortcutVisible"] | s.recentBooksShortcutVisible, static_cast<uint8_t>(2),
+            s.recentBooksShortcutVisible);
+  s.bookmarksShortcutVisible =
+      clamp(doc["bookmarksShortcutVisible"] | s.bookmarksShortcutVisible, static_cast<uint8_t>(2),
+            s.bookmarksShortcutVisible);
+  s.fileTransferShortcutVisible =
+      clamp(doc["fileTransferShortcutVisible"] | s.fileTransferShortcutVisible, static_cast<uint8_t>(2),
+            s.fileTransferShortcutVisible);
+  s.sleepShortcutVisible =
+      clamp(doc["sleepShortcutVisible"] | s.sleepShortcutVisible, static_cast<uint8_t>(2), s.sleepShortcutVisible);
+
+  normalizeShortcutOrderSettings(s);
+  CrossPointSettings::validateFrontButtonMapping(s);
+
+  LOG_DBG("CPS", "Settings loaded from file");
+  return true;
+}
+
 // ---- CrossPointState ----
 
 bool JsonSettingsIO::saveState(const CrossPointState& s, const char* path) {
   JsonDocument doc;
   doc["openEpubPath"] = s.openEpubPath;
-  doc["lastSleepImage"] = s.lastSleepImage;
+  JsonArray recentArr = doc["recentSleepImages"].to<JsonArray>();
+  for (int i = 0; i < CrossPointState::SLEEP_RECENT_COUNT; i++) recentArr.add(s.recentSleepImages[i]);
+  doc["recentSleepPos"] = s.recentSleepPos;
+  doc["recentSleepFill"] = s.recentSleepFill;
   doc["readerActivityLoadCount"] = s.readerActivityLoadCount;
   doc["lastSleepFromReader"] = s.lastSleepFromReader;
   doc["lastKnownValidTimestamp"] = s.lastKnownValidTimestamp;
   doc["syncDayReminderStartCount"] = s.syncDayReminderStartCount;
   doc["syncDayReminderLatched"] = s.syncDayReminderLatched;
-
   return saveJsonDocumentToFile("CPS", path, doc);
 }
 
@@ -314,7 +427,21 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
   }
 
   s.openEpubPath = doc["openEpubPath"] | std::string("");
-  s.lastSleepImage = doc["lastSleepImage"] | (uint8_t)UINT8_MAX;
+  memset(s.recentSleepImages, 0, sizeof(s.recentSleepImages));
+  JsonArrayConst recentArr = doc["recentSleepImages"];
+  const int actualCount = recentArr.isNull() ? 0
+                                             : std::min(static_cast<int>(recentArr.size()),
+                                                        static_cast<int>(CrossPointState::SLEEP_RECENT_COUNT));
+  for (int i = 0; i < actualCount; i++) s.recentSleepImages[i] = recentArr[i] | static_cast<uint16_t>(0);
+  s.recentSleepPos = doc["recentSleepPos"] | static_cast<uint8_t>(0);
+  if (s.recentSleepPos >= CrossPointState::SLEEP_RECENT_COUNT)
+    s.recentSleepPos = actualCount > 0 ? s.recentSleepPos % CrossPointState::SLEEP_RECENT_COUNT : 0;
+  s.recentSleepFill = doc["recentSleepFill"] | static_cast<uint8_t>(0);
+  s.recentSleepFill = static_cast<uint8_t>(std::min(static_cast<int>(s.recentSleepFill), actualCount));
+  if (s.recentSleepFill == 0 && !doc["lastSleepImage"].isNull()) {
+    const uint8_t legacy = doc["lastSleepImage"] | static_cast<uint8_t>(UINT8_MAX);
+    if (legacy != UINT8_MAX) s.pushRecentSleep(static_cast<uint16_t>(legacy));
+  }
   s.readerActivityLoadCount = doc["readerActivityLoadCount"] | (uint8_t)0;
   s.lastSleepFromReader = doc["lastSleepFromReader"] | false;
   s.lastKnownValidTimestamp = doc["lastKnownValidTimestamp"] | static_cast<uint32_t>(0);
@@ -328,51 +455,100 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
 bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path) {
   JsonDocument doc;
 
-  for (const auto& info : getPersistedSettingsList()) {
-    if (!info.key) continue;
-    // Dynamic entries (KOReader etc.) are stored in their own files — skip.
-    if (!info.valuePtr && !info.stringOffset) continue;
+  doc["sleepScreen"] = s.sleepScreen;
+  doc["sleepScreenCoverMode"] = s.sleepScreenCoverMode;
+  doc["sleepScreenCoverFilter"] = s.sleepScreenCoverFilter;
+  doc["hideBatteryPercentage"] = s.hideBatteryPercentage;
+  doc["refreshFrequency"] = s.refreshFrequency;
+  doc["uiTheme"] = s.uiTheme;
+  doc["uiThemeSchemaVersion"] = UI_THEME_SCHEMA_VERSION;
+  doc["fadingFix"] = s.fadingFix;
+  doc["darkMode"] = s.darkMode;
 
-    if (info.stringOffset) {
-      const char* strPtr = (const char*)&s + info.stringOffset;
-      if (info.obfuscated) {
-        doc[std::string(info.key) + "_obf"] = obfuscation::obfuscateToBase64(strPtr);
-      } else {
-        doc[info.key] = strPtr;
-      }
-    } else {
-      doc[info.key] = s.*(info.valuePtr);
-    }
-  }
+  doc["fontFamily"] = s.fontFamily;
+  doc["fontFamilySchemaVersion"] = FONT_FAMILY_SCHEMA_VERSION;
+  doc["fontSize"] = s.fontSize;
+  doc["fontSizeSchemaVersion"] = FONT_SIZE_SCHEMA_VERSION;
+  doc["lineSpacing"] = s.lineSpacing;
+  doc["screenMargin"] = s.screenMargin;
+  doc["paragraphAlignment"] = s.paragraphAlignment;
+  doc["embeddedStyle"] = s.embeddedStyle;
+  doc["hyphenationEnabled"] = s.hyphenationEnabled;
+  doc["orientation"] = s.orientation;
+  doc["extraParagraphSpacing"] = s.extraParagraphSpacing;
+  doc["textAntiAliasing"] = s.textAntiAliasing;
+  doc["textDarkness"] = s.textDarkness;
+  doc["readerRefreshMode"] = s.readerRefreshMode;
+  doc["imageRendering"] = s.imageRendering;
+
+  doc["sideButtonLayout"] = s.sideButtonLayout;
+  doc["longPressChapterSkip"] = s.longPressChapterSkip;
+  doc["shortPwrBtn"] = s.shortPwrBtn;
+
+  doc["sleepTimeout"] = s.sleepTimeout;
+  doc["showHiddenFiles"] = s.showHiddenFiles;
+
+  doc["displayDay"] = s.displayDay;
+  doc["syncDayReminderStarts"] = s.syncDayReminderStarts;
+  doc["dateFormat"] = s.dateFormat;
+  doc["dailyGoalTarget"] = s.dailyGoalTarget;
+  doc["showStatsAfterReading"] = s.showStatsAfterReading;
+  doc["achievementsEnabled"] = s.achievementsEnabled;
+  doc["achievementPopups"] = s.achievementPopups;
+
+  doc["opdsServerUrl"] = s.opdsServerUrl;
+  doc["opdsUsername"] = s.opdsUsername;
+  doc["opdsPassword_obf"] = obfuscation::obfuscateToBase64(s.opdsPassword);
+
+  doc["statusBarChapterPageCount"] = s.statusBarChapterPageCount;
+  doc["statusBarBookProgressPercentage"] = s.statusBarBookProgressPercentage;
+  doc["statusBarProgressBar"] = s.statusBarProgressBar;
+  doc["statusBarProgressBarThickness"] = s.statusBarProgressBarThickness;
+  doc["statusBarTitle"] = s.statusBarTitle;
+  doc["statusBarBattery"] = s.statusBarBattery;
 
   // Front button remap — managed by RemapFrontButtons sub-activity, not in SettingsList.
-  doc["fontFamilySchemaVersion"] = FONT_FAMILY_SCHEMA_VERSION;
   doc["frontButtonBack"] = s.frontButtonBack;
   doc["frontButtonConfirm"] = s.frontButtonConfirm;
   doc["frontButtonLeft"] = s.frontButtonLeft;
   doc["frontButtonRight"] = s.frontButtonRight;
-  doc["timeZonePreset"] = TimeZoneRegistry::clampPresetIndex(s.timeZonePreset);
+  doc["autoSyncDay"] = s.autoSyncDay;
   doc["sleepDirectory"] = s.sleepDirectory;
   doc["sleepImageOrder"] = s.sleepImageOrder;
+  doc["timeZonePreset"] = TimeZoneRegistry::clampPresetIndex(s.timeZonePreset);
   doc["appsHubShortcutOrder"] = s.appsHubShortcutOrder;
+  doc["browseFilesShortcut"] = s.browseFilesShortcut;
   doc["browseFilesShortcutOrder"] = s.browseFilesShortcutOrder;
+  doc["statsShortcut"] = s.statsShortcut;
   doc["statsShortcutOrder"] = s.statsShortcutOrder;
+  doc["syncDayShortcut"] = s.syncDayShortcut;
   doc["syncDayShortcutOrder"] = s.syncDayShortcutOrder;
+  doc["settingsShortcut"] = s.settingsShortcut;
   doc["settingsShortcutOrder"] = s.settingsShortcutOrder;
+  doc["readingStatsShortcut"] = s.readingStatsShortcut;
   doc["readingStatsShortcutOrder"] = s.readingStatsShortcutOrder;
+  doc["readingHeatmapShortcut"] = s.readingHeatmapShortcut;
   doc["readingHeatmapShortcutOrder"] = s.readingHeatmapShortcutOrder;
+  doc["readingProfileShortcut"] = s.readingProfileShortcut;
   doc["readingProfileShortcutOrder"] = s.readingProfileShortcutOrder;
+  doc["achievementsShortcut"] = s.achievementsShortcut;
   doc["achievementsShortcutOrder"] = s.achievementsShortcutOrder;
+  doc["ifFoundShortcut"] = s.ifFoundShortcut;
   doc["ifFoundShortcutOrder"] = s.ifFoundShortcutOrder;
+  doc["readMeShortcut"] = s.readMeShortcut;
   doc["readMeShortcutOrder"] = s.readMeShortcutOrder;
+  doc["recentBooksShortcut"] = s.recentBooksShortcut;
   doc["recentBooksShortcutOrder"] = s.recentBooksShortcutOrder;
+  doc["bookmarksShortcut"] = s.bookmarksShortcut;
   doc["bookmarksShortcutOrder"] = s.bookmarksShortcutOrder;
+  doc["fileTransferShortcut"] = s.fileTransferShortcut;
   doc["fileTransferShortcutOrder"] = s.fileTransferShortcutOrder;
+  doc["sleepShortcut"] = s.sleepShortcut;
   doc["sleepShortcutOrder"] = s.sleepShortcutOrder;
   doc["browseFilesShortcutVisible"] = s.browseFilesShortcutVisible;
   doc["statsShortcutVisible"] = s.statsShortcutVisible;
   doc["syncDayShortcutVisible"] = s.syncDayShortcutVisible;
-  doc["settingsShortcutVisible"] = 1;
+  doc["settingsShortcutVisible"] = s.settingsShortcutVisible;
   doc["readingStatsShortcutVisible"] = s.readingStatsShortcutVisible;
   doc["readingHeatmapShortcutVisible"] = s.readingHeatmapShortcutVisible;
   doc["readingProfileShortcutVisible"] = s.readingProfileShortcutVisible;
@@ -383,7 +559,6 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["bookmarksShortcutVisible"] = s.bookmarksShortcutVisible;
   doc["fileTransferShortcutVisible"] = s.fileTransferShortcutVisible;
   doc["sleepShortcutVisible"] = s.sleepShortcutVisible;
-  doc["fontSizeSchemaVersion"] = FONT_SIZE_SCHEMA_VERSION;
 
   return saveJsonDocumentToFile("CPS", path, doc);
 }
@@ -397,6 +572,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
     return false;
   }
 
+  return loadSettingsDirect(s, doc, needsResave);
+
   auto clamp = [](uint8_t val, uint8_t maxVal, uint8_t def) -> uint8_t { return val < maxVal ? val : def; };
 
   // Legacy migration: if statusBarChapterPageCount is absent this is a pre-refactor settings file.
@@ -405,7 +582,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
     applyLegacyStatusBarSettings(s);
   }
 
-  for (const auto& info : getPersistedSettingsList()) {
+  for (const auto& info : getSettingsList()) {
     if (!info.key) continue;
     // Dynamic entries (KOReader etc.) are stored in their own files — skip.
     if (!info.valuePtr && !info.stringOffset) continue;
@@ -459,12 +636,9 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       if (needsResave) *needsResave = true;
     }
   }
-  const uint8_t fontFamilySchemaVersion = doc["fontFamilySchemaVersion"] | FONT_FAMILY_SCHEMA_VERSION;
+
   const uint8_t rawFontFamily = doc["fontFamily"] | s.fontFamily;
-  if (fontFamilySchemaVersion < FONT_FAMILY_SCHEMA_VERSION && rawFontFamily == 3) {
-    s.fontFamily = CrossPointSettings::LEXEND;
-    if (needsResave) *needsResave = true;
-  } else if (rawFontFamily >= static_cast<uint8_t>(CrossPointSettings::FONT_FAMILY_COUNT)) {
+  if (rawFontFamily >= static_cast<uint8_t>(CrossPointSettings::FONT_FAMILY_COUNT)) {
     s.fontFamily = CrossPointSettings::BOOKERLY;
     if (needsResave) *needsResave = true;
   } else {
@@ -480,50 +654,84 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       clamp(doc["frontButtonLeft"] | (uint8_t)S::FRONT_HW_LEFT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_LEFT);
   s.frontButtonRight =
       clamp(doc["frontButtonRight"] | (uint8_t)S::FRONT_HW_RIGHT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_RIGHT);
-  CrossPointSettings::validateFrontButtonMapping(s);
-  s.timeZonePreset =
-      TimeZoneRegistry::clampPresetIndex(doc["timeZonePreset"] | TimeZoneRegistry::DEFAULT_TIME_ZONE_INDEX);
-
+  s.displayDay = clamp(doc["displayDay"] | s.displayDay, static_cast<uint8_t>(2), s.displayDay);
+  s.autoSyncDay = clamp(doc["autoSyncDay"] | s.autoSyncDay, static_cast<uint8_t>(2), s.autoSyncDay);
+  s.syncDayReminderStarts =
+      clamp(doc["syncDayReminderStarts"] | s.syncDayReminderStarts, S::SYNC_DAY_REMINDER_STARTS_COUNT,
+            s.syncDayReminderStarts);
   {
     const std::string sleepDirectory = doc["sleepDirectory"] | std::string("");
     strncpy(s.sleepDirectory, sleepDirectory.c_str(), sizeof(s.sleepDirectory) - 1);
     s.sleepDirectory[sizeof(s.sleepDirectory) - 1] = '\0';
   }
-  s.sleepImageOrder = clamp(doc["sleepImageOrder"] | (uint8_t)CrossPointSettings::SLEEP_IMAGE_SHUFFLE,
-                            CrossPointSettings::SLEEP_IMAGE_ORDER_COUNT,
-                            CrossPointSettings::SLEEP_IMAGE_SHUFFLE);
+  s.sleepImageOrder = clamp(doc["sleepImageOrder"] | static_cast<uint8_t>(S::SLEEP_IMAGE_SHUFFLE),
+                            S::SLEEP_IMAGE_ORDER_COUNT, S::SLEEP_IMAGE_SHUFFLE);
+  s.timeZonePreset =
+      TimeZoneRegistry::clampPresetIndex(doc["timeZonePreset"] | TimeZoneRegistry::DEFAULT_TIME_ZONE_INDEX);
+  s.dateFormat = clamp(doc["dateFormat"] | s.dateFormat, S::DATE_FORMAT_COUNT, s.dateFormat);
+  s.dailyGoalTarget = clamp(doc["dailyGoalTarget"] | s.dailyGoalTarget, S::DAILY_GOAL_TARGET_COUNT, s.dailyGoalTarget);
+  s.showStatsAfterReading =
+      clamp(doc["showStatsAfterReading"] | s.showStatsAfterReading, static_cast<uint8_t>(2), s.showStatsAfterReading);
+  s.achievementsEnabled =
+      clamp(doc["achievementsEnabled"] | s.achievementsEnabled, static_cast<uint8_t>(2), s.achievementsEnabled);
+  s.achievementPopups =
+      clamp(doc["achievementPopups"] | s.achievementPopups, static_cast<uint8_t>(2), s.achievementPopups);
 
+  const uint8_t shortcutLocationCount = S::SHORTCUT_LOCATION_COUNT;
   const uint8_t shortcutOrderCount = static_cast<uint8_t>(getShortcutDefinitions().size() + 1);
   s.appsHubShortcutOrder = clamp(doc["appsHubShortcutOrder"] | s.appsHubShortcutOrder, shortcutOrderCount,
                                  s.appsHubShortcutOrder);
+  s.browseFilesShortcut =
+      clamp(doc["browseFilesShortcut"] | s.browseFilesShortcut, shortcutLocationCount, s.browseFilesShortcut);
   s.browseFilesShortcutOrder = clamp(doc["browseFilesShortcutOrder"] | s.browseFilesShortcutOrder, shortcutOrderCount,
                                      s.browseFilesShortcutOrder);
+  s.statsShortcut = clamp(doc["statsShortcut"] | s.statsShortcut, shortcutLocationCount, s.statsShortcut);
   s.statsShortcutOrder =
       clamp(doc["statsShortcutOrder"] | s.statsShortcutOrder, shortcutOrderCount, s.statsShortcutOrder);
+  s.syncDayShortcut = clamp(doc["syncDayShortcut"] | s.syncDayShortcut, shortcutLocationCount, s.syncDayShortcut);
   s.syncDayShortcutOrder =
       clamp(doc["syncDayShortcutOrder"] | s.syncDayShortcutOrder, shortcutOrderCount, s.syncDayShortcutOrder);
+  s.settingsShortcut = clamp(doc["settingsShortcut"] | s.settingsShortcut, shortcutLocationCount, s.settingsShortcut);
   s.settingsShortcutOrder =
       clamp(doc["settingsShortcutOrder"] | s.settingsShortcutOrder, shortcutOrderCount, s.settingsShortcutOrder);
+  s.readingStatsShortcut =
+      clamp(doc["readingStatsShortcut"] | s.readingStatsShortcut, shortcutLocationCount, s.readingStatsShortcut);
   s.readingStatsShortcutOrder = clamp(doc["readingStatsShortcutOrder"] | s.readingStatsShortcutOrder,
                                       shortcutOrderCount, s.readingStatsShortcutOrder);
+  s.readingHeatmapShortcut = clamp(doc["readingHeatmapShortcut"] | s.readingHeatmapShortcut, shortcutLocationCount,
+                                   s.readingHeatmapShortcut);
   s.readingHeatmapShortcutOrder = clamp(doc["readingHeatmapShortcutOrder"] | s.readingHeatmapShortcutOrder,
                                         shortcutOrderCount, s.readingHeatmapShortcutOrder);
+  s.readingProfileShortcut = clamp(doc["readingProfileShortcut"] | s.readingProfileShortcut, shortcutLocationCount,
+                                   s.readingProfileShortcut);
   s.readingProfileShortcutOrder = clamp(doc["readingProfileShortcutOrder"] | s.readingProfileShortcutOrder,
                                         shortcutOrderCount, s.readingProfileShortcutOrder);
+  s.achievementsShortcut =
+      clamp(doc["achievementsShortcut"] | s.achievementsShortcut, shortcutLocationCount, s.achievementsShortcut);
   s.achievementsShortcutOrder = clamp(doc["achievementsShortcutOrder"] | s.achievementsShortcutOrder,
                                       shortcutOrderCount, s.achievementsShortcutOrder);
+  s.ifFoundShortcut = clamp(doc["ifFoundShortcut"] | s.ifFoundShortcut, shortcutLocationCount, s.ifFoundShortcut);
   s.ifFoundShortcutOrder =
       clamp(doc["ifFoundShortcutOrder"] | s.ifFoundShortcutOrder, shortcutOrderCount, s.ifFoundShortcutOrder);
+  s.readMeShortcut = clamp(doc["readMeShortcut"] | s.readMeShortcut, shortcutLocationCount, s.readMeShortcut);
   s.readMeShortcutOrder =
       clamp(doc["readMeShortcutOrder"] | s.readMeShortcutOrder, shortcutOrderCount, s.readMeShortcutOrder);
+  s.recentBooksShortcut =
+      clamp(doc["recentBooksShortcut"] | s.recentBooksShortcut, shortcutLocationCount, s.recentBooksShortcut);
   s.recentBooksShortcutOrder = clamp(doc["recentBooksShortcutOrder"] | s.recentBooksShortcutOrder, shortcutOrderCount,
                                      s.recentBooksShortcutOrder);
+  s.bookmarksShortcut =
+      clamp(doc["bookmarksShortcut"] | s.bookmarksShortcut, shortcutLocationCount, s.bookmarksShortcut);
   s.bookmarksShortcutOrder =
       clamp(doc["bookmarksShortcutOrder"] | s.bookmarksShortcutOrder, shortcutOrderCount, s.bookmarksShortcutOrder);
+  s.fileTransferShortcut =
+      clamp(doc["fileTransferShortcut"] | s.fileTransferShortcut, shortcutLocationCount, s.fileTransferShortcut);
   s.fileTransferShortcutOrder = clamp(doc["fileTransferShortcutOrder"] | s.fileTransferShortcutOrder,
                                       shortcutOrderCount, s.fileTransferShortcutOrder);
+  s.sleepShortcut = clamp(doc["sleepShortcut"] | s.sleepShortcut, shortcutLocationCount, s.sleepShortcut);
   s.sleepShortcutOrder =
       clamp(doc["sleepShortcutOrder"] | s.sleepShortcutOrder, shortcutOrderCount, s.sleepShortcutOrder);
+
   s.browseFilesShortcutVisible =
       clamp(doc["browseFilesShortcutVisible"] | s.browseFilesShortcutVisible, static_cast<uint8_t>(2),
             s.browseFilesShortcutVisible);
@@ -534,10 +742,6 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
   s.settingsShortcutVisible =
       clamp(doc["settingsShortcutVisible"] | s.settingsShortcutVisible, static_cast<uint8_t>(2),
             s.settingsShortcutVisible);
-  if (s.settingsShortcutVisible == 0) {
-    s.settingsShortcutVisible = 1;
-    if (needsResave) *needsResave = true;
-  }
   s.readingStatsShortcutVisible =
       clamp(doc["readingStatsShortcutVisible"] | s.readingStatsShortcutVisible, static_cast<uint8_t>(2),
             s.readingStatsShortcutVisible);
@@ -568,6 +772,7 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       clamp(doc["sleepShortcutVisible"] | s.sleepShortcutVisible, static_cast<uint8_t>(2), s.sleepShortcutVisible);
 
   normalizeShortcutOrderSettings(s);
+  CrossPointSettings::validateFrontButtonMapping(s);
 
   LOG_DBG("CPS", "Settings loaded from file");
 
@@ -583,7 +788,9 @@ bool JsonSettingsIO::saveKOReader(const KOReaderCredentialStore& store, const ch
   doc["serverUrl"] = store.getServerUrl();
   doc["matchMethod"] = static_cast<uint8_t>(store.getMatchMethod());
 
-  return saveJsonDocumentToFile("KRS", path, doc);
+  String json;
+  serializeJson(doc, json);
+  return Storage.writeFile(path, json);
 }
 
 bool JsonSettingsIO::loadKOReader(KOReaderCredentialStore& store, const char* json, bool* needsResave) {
@@ -623,7 +830,9 @@ bool JsonSettingsIO::saveWifi(const WifiCredentialStore& store, const char* path
     obj["password_obf"] = obfuscation::obfuscateToBase64(cred.password);
   }
 
-  return saveJsonDocumentToFile("WCS", path, doc);
+  String json;
+  serializeJson(doc, json);
+  return Storage.writeFile(path, json);
 }
 
 bool JsonSettingsIO::loadWifi(WifiCredentialStore& store, const char* json, bool* needsResave) {
@@ -671,7 +880,9 @@ bool JsonSettingsIO::saveRecentBooks(const RecentBooksStore& store, const char* 
     obj["coverBmpPath"] = book.coverBmpPath;
   }
 
-  return saveJsonDocumentToFile("RBS", path, doc);
+  String json;
+  serializeJson(doc, json);
+  return Storage.writeFile(path, json);
 }
 
 bool JsonSettingsIO::loadRecentBooks(RecentBooksStore& store, const char* json) {
@@ -682,36 +893,8 @@ bool JsonSettingsIO::loadRecentBooks(RecentBooksStore& store, const char* json) 
     return false;
   }
 
-  const uint32_t formatVersion = doc["formatVersion"] | static_cast<uint32_t>(1);
   store.recentBooks.clear();
-  JsonArray arr = doc["books"].as<JsonArray>();
-  for (JsonObject obj : arr) {
-    if (store.getCount() >= 10) break;
-    RecentBook book;
-    book.bookId = obj["bookId"] | std::string("");
-    book.path = obj["path"] | std::string("");
-    book.title = obj["title"] | std::string("");
-    book.author = obj["author"] | std::string("");
-    book.coverBmpPath = obj["coverBmpPath"] | std::string("");
-    if (formatVersion < 2) {
-      book.bookId.clear();
-    }
-    store.recentBooks.push_back(book);
-  }
-
-  store.normalizeBooks();
-  LOG_DBG("RBS", "Recent books loaded from file (%d entries)", store.getCount());
-  return true;
-}
-
-bool JsonSettingsIO::loadRecentBooksFromFile(RecentBooksStore& store, const char* path) {
-  JsonDocument doc;
-  if (!loadJsonDocumentFromFile("RBS", path, doc)) {
-    return false;
-  }
-
   const uint32_t formatVersion = doc["formatVersion"] | static_cast<uint32_t>(1);
-  store.recentBooks.clear();
   JsonArray arr = doc["books"].as<JsonArray>();
   for (JsonObject obj : arr) {
     if (store.getCount() >= 10) break;
@@ -891,89 +1074,9 @@ bool JsonSettingsIO::loadReadingStatsFromFile(ReadingStatsStore& store, const ch
     return false;
   }
 
-  store.books.clear();
-  store.legacyReadingDays.clear();
-  store.readingDays.clear();
-  store.sessionLog.clear();
-  store.dirty = false;
-
-  const uint32_t formatVersion = doc["formatVersion"] | static_cast<uint32_t>(1);
-
-  auto appendReadingDays = [](std::vector<ReadingDayStats>& destination, JsonArray source) {
-    for (JsonVariant value : source) {
-      ReadingDayStats day;
-      if (value.is<JsonObject>()) {
-        JsonObject obj = value.as<JsonObject>();
-        day.dayOrdinal = obj["dayOrdinal"] | static_cast<uint32_t>(0);
-        day.readingMs = obj["readingMs"] | static_cast<uint64_t>(0);
-      } else {
-        day.dayOrdinal = value | static_cast<uint32_t>(0);
-        day.readingMs = 0;
-      }
-      if (day.dayOrdinal != 0) {
-        destination.push_back(day);
-      }
-    }
-  };
-
-  appendReadingDays(store.readingDays, doc["readingDays"].as<JsonArray>());
-  if (formatVersion >= 2) {
-    appendReadingDays(store.legacyReadingDays, doc["legacyReadingDays"].as<JsonArray>());
-  } else {
-    store.legacyReadingDays = store.readingDays;
-  }
-
-  if (formatVersion >= 4) {
-    for (JsonObject sessionObj : doc["sessionLog"].as<JsonArray>()) {
-      ReadingSessionLogEntry session;
-      session.dayOrdinal = sessionObj["dayOrdinal"] | static_cast<uint32_t>(0);
-      session.sessionMs = sessionObj["sessionMs"] | static_cast<uint32_t>(0);
-      if (session.dayOrdinal != 0 && session.sessionMs != 0) {
-        store.sessionLog.push_back(session);
-      }
-    }
-  } else {
-    store.dirty = true;
-  }
-
-  JsonArray books = doc["books"].as<JsonArray>();
-  for (JsonObject obj : books) {
-    ReadingBookStats book;
-    book.bookId = obj["bookId"] | std::string("");
-    book.path = obj["path"] | std::string("");
-    if (book.path.empty()) {
-      continue;
-    }
-    for (JsonVariant value : obj["knownPaths"].as<JsonArray>()) {
-      const std::string knownPath = value | std::string("");
-      if (!knownPath.empty()) {
-        book.knownPaths.push_back(knownPath);
-      }
-    }
-    book.title = obj["title"] | std::string("");
-    book.author = obj["author"] | std::string("");
-    book.coverBmpPath = obj["coverBmpPath"] | std::string("");
-    book.chapterTitle = obj["chapterTitle"] | std::string("");
-    book.totalReadingMs = obj["totalReadingMs"] | static_cast<uint64_t>(0);
-    book.sessions = obj["sessions"] | static_cast<uint32_t>(0);
-    book.lastSessionMs = obj["lastSessionMs"] | static_cast<uint32_t>(0);
-    book.firstReadAt = obj["firstReadAt"] | static_cast<uint32_t>(0);
-    book.lastReadAt = obj["lastReadAt"] | static_cast<uint32_t>(0);
-    book.lastProgressPercent = obj["lastProgressPercent"] | static_cast<uint8_t>(0);
-    book.chapterProgressPercent = obj["chapterProgressPercent"] | static_cast<uint8_t>(0);
-    book.completed = obj["completed"] | false;
-    if (formatVersion >= 2) {
-      appendReadingDays(book.readingDays, obj["readingDays"].as<JsonArray>());
-    }
-    if (formatVersion < 3 || book.bookId.empty()) {
-      store.dirty = true;
-    }
-    store.books.push_back(std::move(book));
-  }
-
-  store.rebuildAggregatedReadingDays();
-  LOG_DBG("RST", "Reading stats loaded from file (%d books)", static_cast<int>(store.books.size()));
-  return true;
+  String json;
+  serializeJson(doc, json);
+  return loadReadingStats(store, json.c_str());
 }
 
 // ---- AchievementsStore ----
@@ -1025,6 +1128,7 @@ bool JsonSettingsIO::loadAchievements(AchievementsStore& store, const char* json
   store.startedBooks.clear();
   store.finishedBooks.clear();
   store.pendingUnlocks.clear();
+  store.dirty = false;
   const uint32_t formatVersion = doc["formatVersion"] | static_cast<uint32_t>(1);
 
   store.accumulatedReadingMs = doc["accumulatedReadingMs"] | static_cast<uint64_t>(0);
@@ -1089,64 +1193,7 @@ bool JsonSettingsIO::loadAchievementsFromFile(AchievementsStore& store, const ch
     return false;
   }
 
-  store.states = {};
-  store.startedBooks.clear();
-  store.finishedBooks.clear();
-  store.pendingUnlocks.clear();
-  const uint32_t formatVersion = doc["formatVersion"] | static_cast<uint32_t>(1);
-
-  store.accumulatedReadingMs = doc["accumulatedReadingMs"] | static_cast<uint64_t>(0);
-  store.countedSessions = doc["countedSessions"] | static_cast<uint32_t>(0);
-  store.totalBookmarksAdded = doc["totalBookmarksAdded"] | static_cast<uint32_t>(0);
-  store.longestSessionMs = doc["longestSessionMs"] | static_cast<uint32_t>(0);
-  store.goalDaysCount = doc["goalDaysCount"] | static_cast<uint32_t>(0);
-  store.currentGoalStreak = doc["currentGoalStreak"] | static_cast<uint32_t>(0);
-  store.maxGoalStreak = doc["maxGoalStreak"] | static_cast<uint32_t>(0);
-  store.lastGoalDayOrdinal = doc["lastGoalDayOrdinal"] | static_cast<uint32_t>(0);
-  store.resetDayOrdinal = doc["resetDayOrdinal"] | static_cast<uint32_t>(0);
-  store.resetDayBaselineMs = doc["resetDayBaselineMs"] | static_cast<uint64_t>(0);
-  store.lastProcessedSessionSerial = doc["lastProcessedSessionSerial"] | static_cast<uint32_t>(0);
-
-  JsonArray states = doc["states"].as<JsonArray>();
-  size_t stateIndex = 0;
-  for (JsonObject obj : states) {
-    if (stateIndex >= store.states.size()) {
-      break;
-    }
-    store.states[stateIndex].unlocked = obj["unlocked"] | false;
-    store.states[stateIndex].unlockedAt = obj["unlockedAt"] | static_cast<uint32_t>(0);
-    ++stateIndex;
-  }
-
-  for (JsonVariant value : doc["startedBooks"].as<JsonArray>()) {
-    std::string bookKey = value | std::string("");
-    if (formatVersion < 2 && !bookKey.empty()) {
-      if (const auto* statsBook = READING_STATS.findMatchingBookForPath(bookKey)) {
-        bookKey = statsBook->bookId;
-      } else {
-        bookKey = BookIdentity::resolveStableBookId(bookKey);
-      }
-      store.dirty = true;
-    }
-    if (!bookKey.empty()) {
-      store.startedBooks.push_back(bookKey);
-    }
-  }
-
-  for (JsonVariant value : doc["finishedBooks"].as<JsonArray>()) {
-    std::string bookKey = value | std::string("");
-    if (formatVersion < 2 && !bookKey.empty()) {
-      if (const auto* statsBook = READING_STATS.findMatchingBookForPath(bookKey)) {
-        bookKey = statsBook->bookId;
-      } else {
-        bookKey = BookIdentity::resolveStableBookId(bookKey);
-      }
-      store.dirty = true;
-    }
-    if (!bookKey.empty()) {
-      store.finishedBooks.push_back(bookKey);
-    }
-  }
-
-  return true;
+  String json;
+  serializeJson(doc, json);
+  return loadAchievements(store, json.c_str());
 }

@@ -193,7 +193,10 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
 bool RecentBooksStore::loadFromFile() {
   // Try JSON first
   if (Storage.exists(RECENT_BOOKS_FILE_JSON)) {
-    return JsonSettingsIO::loadRecentBooksFromFile(*this, RECENT_BOOKS_FILE_JSON);
+    String json = Storage.readFile(RECENT_BOOKS_FILE_JSON);
+    if (!json.isEmpty()) {
+      return JsonSettingsIO::loadRecentBooks(*this, json.c_str());
+    }
   }
 
   // Fall back to binary migration
@@ -264,6 +267,7 @@ bool RecentBooksStore::loadFromBinaryFile() {
     }
 
     if (omitted > 0) {
+      // Explicitly close() file before saveToFile() rewrites the same file
       inputFile.close();
       saveToFile();
       LOG_DBG("RBS", "Omitted %u recent book(s) with missing title", omitted);
@@ -271,7 +275,6 @@ bool RecentBooksStore::loadFromBinaryFile() {
     }
   } else {
     LOG_ERR("RBS", "Deserialization failed: Unknown version %u", version);
-    inputFile.close();
     return false;
   }
 

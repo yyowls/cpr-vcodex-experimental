@@ -1,6 +1,5 @@
 #include "GfxRenderer.h"
 
-#include <algorithm>
 #include <FontDecompressor.h>
 #include <HalGPIO.h>
 #include <Logging.h>
@@ -49,7 +48,7 @@ void GfxRenderer::begin() {
   bwBufferChunks.assign((frameBufferSize + BW_BUFFER_CHUNK_SIZE - 1) / BW_BUFFER_CHUNK_SIZE, nullptr);
 }
 
-void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) { fontMap.insert_or_assign(fontId, font); }
+void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) { fontMap.insert({fontId, font}); }
 
 // Translate logical (x,y) coordinates to physical panel coordinates based on current orientation
 // This should always be inlined for better performance
@@ -139,29 +138,25 @@ static void renderCharImpl(const GfxRenderer& renderer, GfxRenderer::RenderMode 
           // the direct bit from the font is 0 -> white, 1 -> light gray, 2 -> dark gray, 3 -> black
           // we swap this to better match the way images and screen think about colors:
           // 0 -> black, 1 -> dark grey, 2 -> light grey, 3 -> white
-          const uint8_t bmpVal = 3 - ((byte >> bit_index) & 0x3);
+          uint8_t bmpVal = 3 - ((byte >> bit_index) & 0x3);
 
-          if (renderMode == GfxRenderer::BW && bmpVal < 3) {
-            // Black (also paints over the grays in BW mode)
-            renderer.drawPixel(screenX, screenY, pixelState);
-          } else if (renderMode == GfxRenderer::GRAYSCALE_MSB) {
-            // Text darkness shifts more AA pixels into the "draw" bucket for a bolder look.
-            // bmpVal: 0=black, 1=dark gray, 2=light gray, 3=white
-            const uint8_t darkness = renderer.getTextDarkness();
-            const bool hit = (darkness >= 2) ? (bmpVal >= 1 && bmpVal <= 2)
-                             : (darkness == 1) ? (bmpVal == 1 || bmpVal == 2)
-                                               : (bmpVal == 2);
-            if (gpio.deviceIsX3() && darkness == 0 && bmpVal != 2) {
-              continue;
+          const uint8_t darkness = renderer.getTextDarkness();
+
+          if (renderMode == GfxRenderer::BW) {
+            // Normal: black only. Dark: black + dark gray. Extra dark: all non-white.
+            if (bmpVal < (1 + darkness)) {
+              renderer.drawPixel(screenX, screenY, pixelState);
             }
-            if (hit) renderer.drawPixel(screenX, screenY, false);
-          } else if (renderMode == GfxRenderer::GRAYSCALE_LSB) {
-            const uint8_t darkness = renderer.getTextDarkness();
-            const bool hit = (darkness >= 2) ? (bmpVal == 1 || bmpVal == 2) : (bmpVal == 1);
-            if (gpio.deviceIsX3() && darkness == 0) {
-              continue;
+          } else {
+            // Shift gray AA pixels darker while preserving edge smoothing.
+            if (darkness > 0 && bmpVal > 0 && bmpVal < 3) {
+              bmpVal = (bmpVal > darkness) ? static_cast<uint8_t>(bmpVal - darkness) : static_cast<uint8_t>(1);
             }
-            if (hit) renderer.drawPixel(screenX, screenY, false);
+            if (renderMode == GfxRenderer::GRAYSCALE_MSB && (bmpVal == 1 || bmpVal == 2)) {
+              renderer.drawPixel(screenX, screenY, false);
+            } else if (renderMode == GfxRenderer::GRAYSCALE_LSB && bmpVal == 1) {
+              renderer.drawPixel(screenX, screenY, false);
+            }
           }
         }
       }
@@ -200,7 +195,6 @@ void GfxRenderer::drawPixelRaw(const int x, const int y, const bool state) const
   // Note: this call should be inlined for better performance
   rotateCoordinates(orientation, x, y, &phyX, &phyY, panelWidth, panelHeight);
 
-  // Bounds checking against physical panel dimensions
   // Bounds checking against runtime panel dimensions
   if (phyX < 0 || phyX >= panelWidth || phyY < 0 || phyY >= panelHeight) {
     LOG_ERR("GFX", "!! Outside range (%d, %d) -> (%d, %d)", x, y, phyX, phyY);
@@ -245,7 +239,8 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
                            const EpdFontFamily::Style style) const {
   const int yPos = y + getFontAscenderSize(fontId);
   int lastBaseX = x;
-  int lastBaseAdvanceFP = 0;  // 12.4 fixed-point
+  int lastBaseLeft = 0;
+  int lastBaseWidth = 0;
   int lastBaseTop = 0;
   int32_t prevAdvanceFP = 0;  // 12.4 fixed-point: prev glyph's advance + next kern for snap
 
@@ -265,37 +260,36 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
     return;
   }
   const auto& font = fontIt->second;
-  constexpr int MIN_COMBINING_GAP_PX = 1;
 
   uint32_t cp;
   uint32_t prevCp = 0;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
     if (utf8IsCombiningMark(cp)) {
       const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
-      int raiseBy = 0;
-      if (combiningGlyph) {
-        const int currentGap = combiningGlyph->top - combiningGlyph->height - lastBaseTop;
-        if (currentGap < MIN_COMBINING_GAP_PX) {
-          raiseBy = MIN_COMBINING_GAP_PX - currentGap;
-        }
-      }
-
-      const int combiningX = lastBaseX + fp4::toPixel(lastBaseAdvanceFP / 2);
-      const int combiningY = yPos - raiseBy;
-      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, combiningX, combiningY, black, style);
+      if (!combiningGlyph) continue;
+      const int raiseBy = combiningMark::raiseAboveBase(combiningGlyph->top, combiningGlyph->height, lastBaseTop);
+      const int combiningX = combiningMark::centerOver(lastBaseX, lastBaseLeft, lastBaseWidth, combiningGlyph->left,
+                                                       combiningGlyph->width);
+      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, combiningX, yPos - raiseBy, black, style);
       continue;
     }
 
     cp = font.applyLigatures(cp, text, style);
+
+    // Differential rounding: snap (previous advance + current kern) as one unit so
+    // identical character pairs always produce the same pixel step regardless of
+    // where they fall on the line.
     if (prevCp != 0) {
       const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      lastBaseX += fp4::toPixel(prevAdvanceFP + kernFP);
+      lastBaseX += fp4::toPixel(prevAdvanceFP + kernFP);       // snap 12.4 fixed-point to nearest pixel
     }
+
     const EpdGlyph* glyph = font.getGlyph(cp, style);
 
-    lastBaseAdvanceFP = glyph ? glyph->advanceX : 0;
+    lastBaseLeft = glyph ? glyph->left : 0;
+    lastBaseWidth = glyph ? glyph->width : 0;
     lastBaseTop = glyph ? glyph->top : 0;
-    prevAdvanceFP = lastBaseAdvanceFP;
+    prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
 
     renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, lastBaseX, yPos, black, style);
     prevCp = cp;
@@ -792,13 +786,11 @@ void GfxRenderer::drawBitmap1Bit(const Bitmap& bitmap, const int x, const int y,
       const uint8_t val = outputRow[bmpX / 4] >> (6 - ((bmpX * 2) % 8)) & 0x3;
 
       // For 1-bit source: 0 or 1 -> map to black (0,1,2) or white (3)
-      // val < 3 means black pixel (draw it)
       if (darkMode) {
         drawPixelRaw(screenX, screenY, val < 3);
       } else if (val < 3) {
         drawPixelRaw(screenX, screenY, true);
       }
-      // White pixels (val == 3) are only skipped in normal mode where the page background is already white.
     }
   }
 
@@ -1067,15 +1059,14 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFami
     // Differential rounding: snap (previous advance + current kern) together,
     // matching drawText so measurement and rendering agree exactly.
     if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);
-      widthPx += fp4::toPixel(prevAdvanceFP + kernFP);
+      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
+      widthPx += fp4::toPixel(prevAdvanceFP + kernFP);         // snap 12.4 fixed-point to nearest pixel
     }
 
     const EpdGlyph* glyph = font.getGlyph(cp, style);
     prevAdvanceFP = glyph ? glyph->advanceX : 0;
     prevCp = cp;
   }
-  widthPx += fp4::toPixel(prevAdvanceFP);
   widthPx += fp4::toPixel(prevAdvanceFP);  // final glyph's advance
   return widthPx;
 }
@@ -1125,26 +1116,21 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
   const auto& font = fontIt->second;
 
   int lastBaseY = y;
-  int lastBaseAdvanceFP = 0;  // 12.4 fixed-point
+  int lastBaseLeft = 0;
+  int lastBaseWidth = 0;
   int lastBaseTop = 0;
   int32_t prevAdvanceFP = 0;  // 12.4 fixed-point: prev glyph's advance + next kern for snap
-  constexpr int MIN_COMBINING_GAP_PX = 1;
 
   uint32_t cp;
   uint32_t prevCp = 0;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
     if (utf8IsCombiningMark(cp)) {
       const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
-      int raiseBy = 0;
-      if (combiningGlyph) {
-        const int currentGap = combiningGlyph->top - combiningGlyph->height - lastBaseTop;
-        if (currentGap < MIN_COMBINING_GAP_PX) {
-          raiseBy = MIN_COMBINING_GAP_PX - currentGap;
-        }
-      }
-
+      if (!combiningGlyph) continue;
+      const int raiseBy = combiningMark::raiseAboveBase(combiningGlyph->top, combiningGlyph->height, lastBaseTop);
       const int combiningX = x - raiseBy;
-      const int combiningY = lastBaseY - fp4::toPixel(lastBaseAdvanceFP / 2);
+      const int combiningY = combiningMark::centerOverRotated90CW(lastBaseY, lastBaseLeft, lastBaseWidth,
+                                                                  combiningGlyph->left, combiningGlyph->width);
       renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, combiningX, combiningY, black, style);
       continue;
     }
@@ -1154,15 +1140,16 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
     // Differential rounding: snap (previous advance + current kern) as one unit,
     // subtracting for the rotated coordinate direction.
     if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);
-      lastBaseY -= fp4::toPixel(prevAdvanceFP + kernFP);
+      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
+      lastBaseY -= fp4::toPixel(prevAdvanceFP + kernFP);       // snap 12.4 fixed-point to nearest pixel
     }
 
     const EpdGlyph* glyph = font.getGlyph(cp, style);
 
-    lastBaseAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
+    lastBaseLeft = glyph ? glyph->left : 0;
+    lastBaseWidth = glyph ? glyph->width : 0;
     lastBaseTop = glyph ? glyph->top : 0;
-    prevAdvanceFP = lastBaseAdvanceFP;
+    prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
 
     renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, x, lastBaseY, black, style);
     prevCp = cp;
@@ -1208,8 +1195,7 @@ bool GfxRenderer::storeBwBuffer() {
     }
 
     const size_t offset = i * BW_BUFFER_CHUNK_SIZE;
-    const size_t chunkSize =
-        std::min(static_cast<size_t>(BW_BUFFER_CHUNK_SIZE), static_cast<size_t>(frameBufferSize - offset));
+    const size_t chunkSize = std::min(BW_BUFFER_CHUNK_SIZE, static_cast<size_t>(frameBufferSize - offset));
     bwBufferChunks[i] = static_cast<uint8_t*>(malloc(chunkSize));
 
     if (!bwBufferChunks[i]) {
@@ -1222,8 +1208,7 @@ bool GfxRenderer::storeBwBuffer() {
     memcpy(bwBufferChunks[i], frameBuffer + offset, chunkSize);
   }
 
-  LOG_DBG("GFX", "Stored BW buffer in %zu chunks (%zu bytes max each)", bwBufferChunks.size(), BW_BUFFER_CHUNK_SIZE);
-  LOG_DBG("GFX", "Stored BW buffer in %zu chunks (%zu bytes max each)", bwBufferChunks.size(), BW_BUFFER_CHUNK_SIZE);
+  LOG_DBG("GFX", "Stored BW buffer in %zu chunks (%zu bytes each)", bwBufferChunks.size(), BW_BUFFER_CHUNK_SIZE);
   return true;
 }
 
@@ -1249,8 +1234,7 @@ void GfxRenderer::restoreBwBuffer() {
 
   for (size_t i = 0; i < bwBufferChunks.size(); i++) {
     const size_t offset = i * BW_BUFFER_CHUNK_SIZE;
-    const size_t chunkSize =
-        std::min(static_cast<size_t>(BW_BUFFER_CHUNK_SIZE), static_cast<size_t>(frameBufferSize - offset));
+    const size_t chunkSize = std::min(BW_BUFFER_CHUNK_SIZE, static_cast<size_t>(frameBufferSize - offset));
     memcpy(frameBuffer + offset, bwBufferChunks[i], chunkSize);
   }
 

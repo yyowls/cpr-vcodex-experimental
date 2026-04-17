@@ -54,7 +54,6 @@ void LanguageSelectActivity::handleSelection() {
     RenderLock lock(*this);
     I18N.setLanguage(static_cast<Language>(SORTED_LANGUAGE_INDICES[selectedIndex]));
     refreshUiFontsForCurrentLanguage();
-    renderer.requestNextFullRefresh();
   }
 
   // Return to previous page

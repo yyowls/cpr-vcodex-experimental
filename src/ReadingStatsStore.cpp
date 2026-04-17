@@ -161,7 +161,8 @@ void ReadingStatsStore::rememberBookIdAlias(ReadingBookStats&, const std::string
 void ReadingStatsStore::mergeBookInto(ReadingBookStats& primary, const ReadingBookStats& duplicate) {
   const uint32_t primaryLastReadAtBefore = primary.lastReadAt;
 
-  if (primary.bookId.empty() || (BookIdentity::isLegacyBookId(primary.bookId) && !BookIdentity::isLegacyBookId(duplicate.bookId))) {
+  if (primary.bookId.empty() ||
+      (BookIdentity::isLegacyBookId(primary.bookId) && !BookIdentity::isLegacyBookId(duplicate.bookId))) {
     primary.bookId = duplicate.bookId;
   }
 
@@ -272,7 +273,8 @@ size_t ReadingStatsStore::getOrCreateBookIndex(const std::string& path, const st
   }
 
   auto& book = books[index];
-  if (book.bookId.empty() || (BookIdentity::isLegacyBookId(book.bookId) && !BookIdentity::isLegacyBookId(resolvedBookId))) {
+  if (book.bookId.empty() ||
+      (BookIdentity::isLegacyBookId(book.bookId) && !BookIdentity::isLegacyBookId(resolvedBookId))) {
     book.bookId = resolvedBookId;
   }
   rememberBookPath(book, normalizedPath);
@@ -635,8 +637,8 @@ void ReadingStatsStore::resumeSession() {
   activeSession.lastInteractionMs = millis();
 }
 
-void ReadingStatsStore::updateProgress(const uint8_t progressPercent, const bool completed, const std::string& chapterTitle,
-                                       const uint8_t chapterProgressPercent) {
+void ReadingStatsStore::updateProgress(const uint8_t progressPercent, const bool completed,
+                                       const std::string& chapterTitle, const uint8_t chapterProgressPercent) {
   if (!activeSession.active || activeSession.bookIndex >= books.size()) {
     return;
   }

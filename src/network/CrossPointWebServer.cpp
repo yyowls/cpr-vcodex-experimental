@@ -10,12 +10,16 @@
 
 #include <algorithm>
 
+#include "AchievementsStore.h"
 #include "CrossPointSettings.h"
+#include "ReadingStatsStore.h"
+#include "RecentBooksStore.h"
 #include "SettingsList.h"
 #include "WebDAVHandler.h"
 #include "html/FilesPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
 #include "html/SettingsPageHtml.generated.h"
+#include "html/js/jszip_minJs.generated.h"
 
 namespace {
 // Folders/files to hide from the web interface file browser
@@ -24,6 +28,31 @@ const char* HIDDEN_ITEMS[] = {"System Volume Information", "XTCache"};
 constexpr size_t HIDDEN_ITEMS_COUNT = sizeof(HIDDEN_ITEMS) / sizeof(HIDDEN_ITEMS[0]);
 constexpr uint16_t UDP_PORTS[] = {54982, 48123, 39001, 44044, 59678};
 constexpr uint16_t LOCAL_UDP_PORT = 8134;
+
+bool isTrackedReadingFile(const String& fileName) {
+  const std::string_view fileView{fileName.c_str(), fileName.length()};
+  return FsHelpers::hasEpubExtension(fileView) || FsHelpers::hasXtcExtension(fileView) ||
+         FsHelpers::hasTxtExtension(fileView) || FsHelpers::hasMarkdownExtension(fileView);
+}
+
+bool isCompletedReadingFilePath(const String& filePath) {
+  if (!isTrackedReadingFile(filePath)) {
+    return false;
+  }
+
+  const auto* statsBook = READING_STATS.findBook(std::string{filePath.c_str(), filePath.length()});
+  return statsBook != nullptr && statsBook->completed;
+}
+
+uint32_t getUnlockedAchievementCount() {
+  uint32_t unlocked = 0;
+  for (const auto& achievement : ACHIEVEMENTS.buildViews()) {
+    if (achievement.state.unlocked) {
+      ++unlocked;
+    }
+  }
+  return unlocked;
+}
 
 // Static pointer for WebSocket callback (WebSocketsServer requires C-style callback)
 CrossPointWebServer* wsInstance = nullptr;
@@ -36,6 +65,8 @@ size_t wsUploadSize = 0;
 size_t wsUploadReceived = 0;
 unsigned long wsUploadStartTime = 0;
 bool wsUploadInProgress = false;
+uint8_t wsUploadClientNum = 255;  // 255 = no active upload client
+size_t wsLastProgressSent = 0;
 String wsLastCompleteName;
 size_t wsLastCompleteSize = 0;
 unsigned long wsLastCompleteAt = 0;
@@ -131,6 +162,7 @@ void CrossPointWebServer::begin() {
   LOG_DBG("WEB", "Setting up routes...");
   server->on("/", HTTP_GET, [this] { handleRoot(); });
   server->on("/files", HTTP_GET, [this] { handleFileList(); });
+  server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
   server->on("/api/status", HTTP_GET, [this] { handleStatus(); });
   server->on("/api/files", HTTP_GET, [this] { handleFileListData(); });
@@ -188,6 +220,22 @@ void CrossPointWebServer::begin() {
   LOG_DBG("WEB", "[MEM] Free heap after server.begin(): %d bytes", ESP.getFreeHeap());
 }
 
+void CrossPointWebServer::abortWsUpload(const char* tag) {
+  // Explicit close() required: file-scope global persists beyond function scope
+  wsUploadFile.close();
+  String filePath = wsUploadPath;
+  if (!filePath.endsWith("/")) filePath += "/";
+  filePath += wsUploadFileName;
+  if (Storage.remove(filePath.c_str())) {
+    LOG_DBG(tag, "Deleted incomplete upload: %s", filePath.c_str());
+  } else {
+    LOG_DBG(tag, "Failed to delete incomplete upload: %s", filePath.c_str());
+  }
+  wsUploadInProgress = false;
+  wsUploadClientNum = 255;
+  wsLastProgressSent = 0;
+}
+
 void CrossPointWebServer::stop() {
   if (!running || !server) {
     LOG_DBG("WEB", "stop() called but already stopped (running=%d, server=%p)", running, server.get());
@@ -199,10 +247,9 @@ void CrossPointWebServer::stop() {
 
   LOG_DBG("WEB", "[MEM] Free heap before stop: %d bytes", ESP.getFreeHeap());
 
-  // Close any in-progress WebSocket upload
+  // Close any in-progress WebSocket upload and remove partial file
   if (wsUploadInProgress && wsUploadFile) {
-    wsUploadFile.close();
-    wsUploadInProgress = false;
+    abortWsUpload("WEB");
   }
 
   // Stop WebSocket server
@@ -309,6 +356,12 @@ void CrossPointWebServer::handleRoot() const {
   LOG_DBG("WEB", "Served root page");
 }
 
+void CrossPointWebServer::handleJszip() const {
+  server->sendHeader("Content-Encoding", "gzip");
+  server->send_P(200, "application/javascript", jszip_minJs, jszip_minJsCompressedSize);
+  LOG_DBG("WEB", "Served jszip.min.js");
+}
+
 void CrossPointWebServer::handleNotFound() const {
   String message = "404 Not Found\n\n";
   message += "URI: " + server->uri() + "\n";
@@ -318,6 +371,8 @@ void CrossPointWebServer::handleNotFound() const {
 void CrossPointWebServer::handleStatus() const {
   // Get correct IP based on AP vs STA mode
   const String ipAddr = apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+  const uint32_t unlockedAchievements = getUnlockedAchievementCount();
+  const uint32_t totalAchievements = static_cast<uint32_t>(AchievementId::_COUNT);
 
   JsonDocument doc;
   doc["version"] = CROSSPOINT_VERSION;
@@ -326,6 +381,14 @@ void CrossPointWebServer::handleStatus() const {
   doc["rssi"] = apMode ? 0 : WiFi.RSSI();
   doc["freeHeap"] = ESP.getFreeHeap();
   doc["uptime"] = millis() / 1000;
+  doc["recentCount"] = RECENT_BOOKS.getCount();
+  doc["booksStarted"] = READING_STATS.getBooksStartedCount();
+  doc["booksCompleted"] = READING_STATS.getBooksFinishedCount();
+  doc["todayReadingMs"] = READING_STATS.getTodayReadingMs();
+  doc["dailyGoalMs"] = getDailyReadingGoalMs();
+  doc["streakDays"] = READING_STATS.getCurrentStreakDays();
+  doc["achievementsUnlocked"] = unlockedAchievements;
+  doc["achievementsTotal"] = totalAchievements;
 
   String json;
   serializeJson(doc, json);
@@ -374,9 +437,16 @@ void CrossPointWebServer::scanFiles(const char* path, const std::function<void(F
       if (info.isDirectory) {
         info.size = 0;
         info.isEpub = false;
+        info.completed = false;
       } else {
         info.size = file.size();
         info.isEpub = isEpubFile(info.name);
+        String fullPath = path;
+        if (!fullPath.endsWith("/")) {
+          fullPath += "/";
+        }
+        fullPath += info.name;
+        info.completed = isCompletedReadingFilePath(fullPath);
       }
 
       callback(info);
@@ -414,7 +484,7 @@ void CrossPointWebServer::handleFileListData() const {
   server->setContentLength(CONTENT_LENGTH_UNKNOWN);
   server->send(200, "application/json", "");
   server->sendContent("[");
-  char output[512];
+  char output[640];
   constexpr size_t outputSize = sizeof(output);
   bool seenFirst = false;
   JsonDocument doc;
@@ -425,6 +495,7 @@ void CrossPointWebServer::handleFileListData() const {
     doc["size"] = info.size;
     doc["isDirectory"] = info.isDirectory;
     doc["isEpub"] = info.isEpub;
+    doc["completed"] = info.completed;
 
     const size_t written = serializeJson(doc, output, outputSize);
     if (written >= outputSize) {
@@ -1217,17 +1288,12 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
   switch (type) {
     case WStype_DISCONNECTED:
       LOG_DBG("WS", "Client %u disconnected", num);
-      // Clean up any in-progress upload
-      if (wsUploadInProgress && wsUploadFile) {
-        wsUploadFile.close();
-        // Delete incomplete file
-        String filePath = wsUploadPath;
-        if (!filePath.endsWith("/")) filePath += "/";
-        filePath += wsUploadFileName;
-        Storage.remove(filePath.c_str());
-        LOG_DBG("WS", "Deleted incomplete upload: %s", filePath.c_str());
+      // Only clean up if this is the client that owns the active upload.
+      // A new client may have already started a fresh upload before this
+      // DISCONNECTED event fires (race condition on quick cancel + retry).
+      if (num == wsUploadClientNum && wsUploadInProgress && wsUploadFile) {
+        abortWsUpload("WS");
       }
-      wsUploadInProgress = false;
       break;
 
     case WStype_CONNECTED: {
@@ -1241,15 +1307,35 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
       LOG_DBG("WS", "Text from client %u: %s", num, msg.c_str());
 
       if (msg.startsWith("START:")) {
+        // Reject any START while an upload is already active to prevent
+        // leaking the open wsUploadFile handle (owning client re-START included)
+        if (wsUploadInProgress) {
+          wsServer->sendTXT(num, "ERROR:Upload already in progress");
+          break;
+        }
+
         // Parse: START:<filename>:<size>:<path>
         int firstColon = msg.indexOf(':', 6);
         int secondColon = msg.indexOf(':', firstColon + 1);
 
         if (firstColon > 0 && secondColon > 0) {
           wsUploadFileName = msg.substring(6, firstColon);
-          wsUploadSize = msg.substring(firstColon + 1, secondColon).toInt();
+          String sizeToken = msg.substring(firstColon + 1, secondColon);
+          bool sizeValid = sizeToken.length() > 0;
+          int digitStart = (sizeValid && sizeToken[0] == '+') ? 1 : 0;
+          if (digitStart > 0 && sizeToken.length() < 2) sizeValid = false;
+          for (int i = digitStart; i < (int)sizeToken.length() && sizeValid; i++) {
+            if (!isdigit((unsigned char)sizeToken[i])) sizeValid = false;
+          }
+          if (!sizeValid) {
+            LOG_DBG("WS", "START rejected: invalid size token '%s'", sizeToken.c_str());
+            wsServer->sendTXT(num, "ERROR:Invalid START format");
+            return;
+          }
+          wsUploadSize = sizeToken.toInt();
           wsUploadPath = msg.substring(secondColon + 1);
           wsUploadReceived = 0;
+          wsLastProgressSent = 0;
           wsUploadStartTime = millis();
 
           // Ensure path is valid
@@ -1277,10 +1363,26 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
           if (!Storage.openFileForWrite("WS", filePath, wsUploadFile)) {
             wsServer->sendTXT(num, "ERROR:Failed to create file");
             wsUploadInProgress = false;
+            wsUploadClientNum = 255;
             return;
           }
           esp_task_wdt_reset();
 
+          // Zero-byte upload: complete immediately without waiting for BIN frames
+          if (wsUploadSize == 0) {
+            // Explicit close() required: file-scope global persists beyond function scope
+            wsUploadFile.close();
+            wsLastCompleteName = wsUploadFileName;
+            wsLastCompleteSize = 0;
+            wsLastCompleteAt = millis();
+            LOG_DBG("WS", "Zero-byte upload complete: %s", filePath.c_str());
+            clearEpubCacheIfNeeded(filePath);
+            wsServer->sendTXT(num, "DONE");
+            wsLastProgressSent = 0;
+            break;
+          }
+
+          wsUploadClientNum = num;
           wsUploadInProgress = true;
           wsServer->sendTXT(num, "READY");
         } else {
@@ -1291,19 +1393,24 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
     }
 
     case WStype_BIN: {
-      if (!wsUploadInProgress || !wsUploadFile) {
+      if (!wsUploadInProgress || !wsUploadFile || num != wsUploadClientNum) {
         wsServer->sendTXT(num, "ERROR:No upload in progress");
         return;
       }
 
       // Write binary data directly to file
+      size_t remaining = wsUploadSize - wsUploadReceived;
+      if (length > remaining) {
+        abortWsUpload("WS");
+        wsServer->sendTXT(num, "ERROR:Upload overflow");
+        return;
+      }
       esp_task_wdt_reset();
       size_t written = wsUploadFile.write(payload, length);
       esp_task_wdt_reset();
 
       if (written != length) {
-        wsUploadFile.close();
-        wsUploadInProgress = false;
+        abortWsUpload("WS");
         wsServer->sendTXT(num, "ERROR:Write failed - disk full?");
         return;
       }
@@ -1311,17 +1418,18 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
       wsUploadReceived += written;
 
       // Send progress update (every 64KB or at end)
-      static size_t lastProgressSent = 0;
-      if (wsUploadReceived - lastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
+      if (wsUploadReceived - wsLastProgressSent >= 65536 || wsUploadReceived >= wsUploadSize) {
         String progress = "PROGRESS:" + String(wsUploadReceived) + ":" + String(wsUploadSize);
         wsServer->sendTXT(num, progress);
-        lastProgressSent = wsUploadReceived;
+        wsLastProgressSent = wsUploadReceived;
       }
 
       // Check if upload complete
       if (wsUploadReceived >= wsUploadSize) {
+        // Explicit close() required: file-scope global persists beyond function scope
         wsUploadFile.close();
         wsUploadInProgress = false;
+        wsUploadClientNum = 255;
 
         wsLastCompleteName = wsUploadFileName;
         wsLastCompleteSize = wsUploadSize;
@@ -1340,7 +1448,7 @@ void CrossPointWebServer::onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* 
         clearEpubCacheIfNeeded(filePath);
 
         wsServer->sendTXT(num, "DONE");
-        lastProgressSent = 0;
+        wsLastProgressSent = 0;
       }
       break;
     }

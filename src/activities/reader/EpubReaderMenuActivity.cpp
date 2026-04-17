@@ -10,13 +10,11 @@
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
-                                               const uint8_t currentTextDarkness, const bool hasFootnotes,
-                                               const bool hasBookmarks)
+                                               const bool hasFootnotes, const bool hasBookmarks)
     : Activity("EpubReaderMenu", renderer, mappedInput),
       menuItems(buildMenuItems(hasFootnotes, hasBookmarks)),
       title(title),
       pendingOrientation(currentOrientation),
-      pendingTextDarkness(currentTextDarkness),
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {}
@@ -33,7 +31,6 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
     items.push_back({MenuAction::BOOKMARKS, StrId::STR_BOOKMARKS});
   }
   items.push_back({MenuAction::ROTATE_SCREEN, StrId::STR_ORIENTATION});
-  items.push_back({MenuAction::TEXT_DARKNESS, StrId::STR_TEXT_DARKNESS});
   items.push_back({MenuAction::AUTO_PAGE_TURN, StrId::STR_AUTO_TURN_PAGES_PER_MIN});
   items.push_back({MenuAction::GO_TO_PERCENT, StrId::STR_GO_TO_PERCENT});
   items.push_back({MenuAction::SCREENSHOT, StrId::STR_SCREENSHOT_BUTTON});
@@ -78,19 +75,13 @@ void EpubReaderMenuActivity::loop() {
       return;
     }
 
-    if (selectedAction == MenuAction::TEXT_DARKNESS) {
-      pendingTextDarkness = (pendingTextDarkness + 1) % textDarknessLabels.size();
-      requestUpdate();
-      return;
-    }
-
-    setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption, pendingTextDarkness});
+    setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption});
     finish();
     return;
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     ActivityResult result;
     result.isCancelled = true;
-    result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption, pendingTextDarkness};
+    result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption};
     setResult(std::move(result));
     finish();
     return;
@@ -150,12 +141,6 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
     if (menuItems[i].action == MenuAction::ROTATE_SCREEN) {
       // Render current orientation value on the right edge of the content area.
       const char* value = I18N.get(orientationLabels[pendingOrientation]);
-      const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-      renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
-    }
-
-    if (menuItems[i].action == MenuAction::TEXT_DARKNESS) {
-      const char* value = I18N.get(textDarknessLabels[pendingTextDarkness]);
       const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
       renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
     }

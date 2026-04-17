@@ -1,6 +1,5 @@
 #include "BookmarksAppActivity.h"
 
-#include <Epub.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
@@ -9,8 +8,8 @@
 #include <algorithm>
 
 #include "../reader/BookmarksActivity.h"
-#include "activities/util/ConfirmationActivity.h"
 #include "ReadingStatsStore.h"
+#include "activities/util/ConfirmationActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/HeaderDateUtils.h"
@@ -68,7 +67,7 @@ void BookmarksAppActivity::openSelectedBook() {
   startActivityForResult(
       std::make_unique<BookmarksActivity>(
           renderer, mappedInput, entry.bookmarks, nullptr, entry.title,
-          [path = entry.path, bookId = entry.bookId](const BookmarkStore::Bookmark& bookmark) {
+          [bookId = entry.bookId](const BookmarkStore::Bookmark& bookmark) {
             BookmarkStore store;
             store.load("", bookId);
             const bool removed = store.remove(bookmark.spineIndex, bookmark.pageNumber);
@@ -88,7 +87,7 @@ void BookmarksAppActivity::openSelectedBook() {
       });
 }
 
-bool BookmarksAppActivity::clearBookmarksForBook(const std::string&, const std::string& bookId) const {
+bool BookmarksAppActivity::clearBookmarksForBook(const std::string& bookId) const {
   BookmarkStore store;
   store.load("", bookId);
   if (store.isEmpty()) {
@@ -108,9 +107,9 @@ void BookmarksAppActivity::confirmDeleteSelectedBook() {
   const BookEntry entry = entries[selectedIndex];
   startActivityForResult(
       std::make_unique<ConfirmationActivity>(renderer, mappedInput, tr(STR_DELETE_ALL_BOOKMARKS), entry.title),
-      [this, path = entry.path, bookId = entry.bookId](const ActivityResult& result) {
+      [this, bookId = entry.bookId](const ActivityResult& result) {
         if (!result.isCancelled) {
-          clearBookmarksForBook(path, bookId);
+          clearBookmarksForBook(bookId);
           refreshEntries();
         }
         requestUpdate();
@@ -165,7 +164,7 @@ void BookmarksAppActivity::render(RenderLock&&) {
   const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
   const int listHeight = pageHeight - contentTop - metrics.buttonHintsHeight - metrics.verticalSpacing;
 
-  HeaderDateUtils::drawHeaderWithDate(renderer, tr(STR_BOOKMARKS));
+  HeaderDateUtils::drawHeaderWithDate(renderer, tr(STR_BOOKMARKS), tr(STR_BOOKMARKS_APP_DESC));
 
   if (entries.empty()) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, contentTop + 20, tr(STR_NO_BOOKMARKS));

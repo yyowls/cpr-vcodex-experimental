@@ -1,5 +1,7 @@
 #include "OtaUpdateActivity.h"
 
+#include <cstdio>
+
 #include <GfxRenderer.h>
 #include <I18n.h>
 #include <WiFi.h>
@@ -10,13 +12,37 @@
 #include "fontIds.h"
 #include "network/OtaUpdater.h"
 
-void OtaUpdateActivity::onWifiSelectionComplete(const bool success) {
-  if (!success) {
-    LOG_ERR("OTA", "WiFi connection failed, exiting");
-    finish();
-    return;
+namespace {
+std::string formatByteSizeCompact(const size_t bytes) {
+  static constexpr const char* units[] = {"B", "KB", "MB", "GB"};
+  double value = static_cast<double>(bytes);
+  size_t unitIndex = 0;
+  while (value >= 1024.0 && unitIndex + 1 < (sizeof(units) / sizeof(units[0]))) {
+    value /= 1024.0;
+    ++unitIndex;
   }
 
+  char buffer[32];
+  if (unitIndex == 0 || value >= 100.0) {
+    snprintf(buffer, sizeof(buffer), "%.0f %s", value, units[unitIndex]);
+  } else if (value >= 10.0) {
+    snprintf(buffer, sizeof(buffer), "%.1f %s", value, units[unitIndex]);
+  } else {
+    snprintf(buffer, sizeof(buffer), "%.2f %s", value, units[unitIndex]);
+  }
+  return buffer;
+}
+
+std::string buildNewVersionLine(const OtaUpdater& updater) {
+  std::string line = std::string(tr(STR_NEW_VERSION)) + updater.getLatestVersion();
+  if (updater.getOtaSize() > 0) {
+    line += " (" + formatByteSizeCompact(updater.getOtaSize()) + ")";
+  }
+  return line;
+}
+}  // namespace
+
+void OtaUpdateActivity::checkForUpdateNow() {
   LOG_DBG("OTA", "WiFi connected, checking for update");
 
   {
@@ -48,6 +74,16 @@ void OtaUpdateActivity::onWifiSelectionComplete(const bool success) {
     RenderLock lock(*this);
     state = WAITING_CONFIRMATION;
   }
+}
+
+void OtaUpdateActivity::onWifiSelectionComplete(const bool success) {
+  if (!success) {
+    LOG_ERR("OTA", "WiFi connection failed, exiting");
+    finish();
+    return;
+  }
+
+  checkForUpdateNow();
 }
 
 void OtaUpdateActivity::onEnter() {
@@ -86,8 +122,9 @@ void OtaUpdateActivity::render(RenderLock&&) {
 
   float updaterProgress = 0;
   if (state == UPDATE_IN_PROGRESS) {
-    LOG_DBG("OTA", "Update progress: %d / %d", updater.getProcessedSize(), updater.getTotalSize());
-    updaterProgress = static_cast<float>(updater.getProcessedSize()) / static_cast<float>(updater.getTotalSize());
+    if (updater.getTotalSize() > 0) {
+      updaterProgress = static_cast<float>(updater.getProcessedSize()) / static_cast<float>(updater.getTotalSize());
+    }
     // Only update every 2% at the most
     if (static_cast<int>(updaterProgress * 50) == lastUpdaterPercentage / 2) {
       return;
@@ -102,7 +139,7 @@ void OtaUpdateActivity::render(RenderLock&&) {
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height + metrics.verticalSpacing,
                       (std::string(tr(STR_CURRENT_VERSION)) + CROSSPOINT_VERSION).c_str());
     renderer.drawText(UI_10_FONT_ID, metrics.contentSidePadding, top + height * 2 + metrics.verticalSpacing * 2,
-                      (std::string(tr(STR_NEW_VERSION)) + updater.getLatestVersion()).c_str());
+                      buildNewVersionLine(updater).c_str());
 
     const auto labels = mappedInput.mapLabels(tr(STR_CANCEL), tr(STR_UPDATE), "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
@@ -119,16 +156,25 @@ void OtaUpdateActivity::render(RenderLock&&) {
     renderer.drawCenteredText(UI_10_FONT_ID, y,
                               (std::to_string(static_cast<int>(updaterProgress * 100)) + "%").c_str());
     y += height + metrics.verticalSpacing;
-    renderer.drawCenteredText(
-        UI_10_FONT_ID, y,
-        (std::to_string(updater.getProcessedSize()) + " / " + std::to_string(updater.getTotalSize())).c_str());
+    renderer.drawCenteredText(UI_10_FONT_ID, y,
+                              (formatByteSizeCompact(updater.getProcessedSize()) + " / " +
+                               formatByteSizeCompact(updater.getTotalSize()))
+                                  .c_str());
   } else if (state == NO_UPDATE) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, tr(STR_NO_UPDATE), true, EpdFontFamily::BOLD);
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
+    renderer.drawCenteredText(UI_10_FONT_ID, top + height + metrics.verticalSpacing,
+                              (std::string(tr(STR_CURRENT_VERSION)) + CROSSPOINT_VERSION).c_str());
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_RETRY), "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == FAILED) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, tr(STR_UPDATE_FAILED), true, EpdFontFamily::BOLD);
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", "", "");
+    renderer.drawCenteredText(UI_10_FONT_ID, top + height + metrics.verticalSpacing,
+                              (std::string(tr(STR_CURRENT_VERSION)) + CROSSPOINT_VERSION).c_str());
+    if (!updater.getLatestVersion().empty()) {
+      renderer.drawCenteredText(UI_10_FONT_ID, top + height * 2 + metrics.verticalSpacing * 2,
+                                buildNewVersionLine(updater).c_str());
+    }
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_RETRY), "", "");
     GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == FINISHED) {
     renderer.drawCenteredText(UI_10_FONT_ID, top, tr(STR_UPDATE_COMPLETE), true, EpdFontFamily::BOLD);
@@ -179,6 +225,11 @@ void OtaUpdateActivity::loop() {
   }
 
   if (state == FAILED) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      checkForUpdateNow();
+      requestUpdate();
+      return;
+    }
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
       finish();
     }
@@ -186,6 +237,11 @@ void OtaUpdateActivity::loop() {
   }
 
   if (state == NO_UPDATE) {
+    if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
+      checkForUpdateNow();
+      requestUpdate();
+      return;
+    }
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
       finish();
     }

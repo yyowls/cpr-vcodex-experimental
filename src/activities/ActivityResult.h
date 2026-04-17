@@ -21,7 +21,6 @@ struct MenuResult {
   int action = -1;
   uint8_t orientation = 0;
   uint8_t pageTurnOption = 0;
-  uint8_t textDarkness = 0;
 };
 
 struct ChapterResult {
@@ -56,9 +55,8 @@ struct FootnoteResult {
   std::string href;
 };
 
-using ResultVariant =
-    std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult, PageResult,
-                 BookmarkResult, SyncResult, NetworkModeResult, FootnoteResult>;
+using ResultVariant = std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult,
+                                   PageResult, BookmarkResult, SyncResult, NetworkModeResult, FootnoteResult>;
 
 struct ActivityResult {
   bool isCancelled = false;

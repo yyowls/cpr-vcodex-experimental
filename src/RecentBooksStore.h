@@ -18,7 +18,6 @@ class RecentBooksStore;
 namespace JsonSettingsIO {
 bool saveRecentBooks(const RecentBooksStore& store, const char* path);
 bool loadRecentBooks(RecentBooksStore& store, const char* json);
-bool loadRecentBooksFromFile(RecentBooksStore& store, const char* path);
 }  // namespace JsonSettingsIO
 
 class RecentBooksStore {
@@ -27,9 +26,8 @@ class RecentBooksStore {
 
   std::vector<RecentBook> recentBooks;
 
-  friend bool JsonSettingsIO::loadRecentBooks(RecentBooksStore&, const char*);
-  friend bool JsonSettingsIO::loadRecentBooksFromFile(RecentBooksStore&, const char*);
   friend bool JsonSettingsIO::saveRecentBooks(const RecentBooksStore&, const char*);
+  friend bool JsonSettingsIO::loadRecentBooks(RecentBooksStore&, const char*);
 
  public:
   ~RecentBooksStore() = default;
@@ -43,6 +41,7 @@ class RecentBooksStore {
 
   void updateBook(const std::string& path, const std::string& title, const std::string& author,
                   const std::string& coverBmpPath, const std::string& bookId = "");
+
   bool removeBook(const std::string& key);
 
   // Get the list of recent books (most recent first)

@@ -10,7 +10,6 @@
 
 #include "util/BookIdentity.h"
 
-// Stores per-book bookmarks inside the reader cache directory.
 class BookmarkStore {
  public:
   struct Bookmark {
@@ -31,6 +30,7 @@ class BookmarkStore {
     } else {
       storagePath = cachePath.empty() ? "" : (cachePath + "/bookmarks.bin");
     }
+
     bookmarks.clear();
     dirty = false;
 
@@ -61,7 +61,7 @@ class BookmarkStore {
     }
 
     bookmarks.reserve(count);
-    for (uint16_t index = 0; index < count; index++) {
+    for (uint16_t index = 0; index < count; ++index) {
       Bookmark bookmark;
       if (file.read(reinterpret_cast<uint8_t*>(&bookmark.spineIndex), sizeof(bookmark.spineIndex)) !=
               sizeof(bookmark.spineIndex) ||
@@ -86,6 +86,7 @@ class BookmarkStore {
           }
         }
       }
+
       bookmarks.push_back(bookmark);
     }
 
