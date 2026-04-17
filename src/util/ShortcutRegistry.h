@@ -21,6 +21,7 @@ enum class ShortcutId {
   ReadMe,
   RecentBooks,
   Bookmarks,
+  Favorites,
   FileTransfer,
   Sleep,
 };
@@ -35,8 +36,8 @@ struct ShortcutDefinition {
   uint8_t CrossPointSettings::* visiblePtr;
 };
 
-inline const std::array<ShortcutDefinition, 14>& getShortcutDefinitions() {
-  static const std::array<ShortcutDefinition, 14> definitions = {
+inline const std::array<ShortcutDefinition, 15>& getShortcutDefinitions() {
+  static const std::array<ShortcutDefinition, 15> definitions = {
       ShortcutDefinition{ShortcutId::BrowseFiles, StrId::STR_BROWSE_FILES, StrId::STR_NONE_OPT, UIIcon::Folder,
                          &CrossPointSettings::browseFilesShortcut, &CrossPointSettings::browseFilesShortcutOrder,
                          &CrossPointSettings::browseFilesShortcutVisible},
@@ -75,6 +76,9 @@ inline const std::array<ShortcutDefinition, 14>& getShortcutDefinitions() {
       ShortcutDefinition{ShortcutId::Bookmarks, StrId::STR_BOOKMARKS, StrId::STR_BOOKMARKS_APP_DESC, UIIcon::Book,
                          &CrossPointSettings::bookmarksShortcut, &CrossPointSettings::bookmarksShortcutOrder,
                          &CrossPointSettings::bookmarksShortcutVisible},
+      ShortcutDefinition{ShortcutId::Favorites, StrId::STR_FAVORITES, StrId::STR_FAVORITES_APP_DESC, UIIcon::Heart,
+                         &CrossPointSettings::favoritesShortcut, &CrossPointSettings::favoritesShortcutOrder,
+                         &CrossPointSettings::favoritesShortcutVisible},
       ShortcutDefinition{ShortcutId::FileTransfer, StrId::STR_FILE_TRANSFER, StrId::STR_FILE_TRANSFER_APP_DESC,
                          UIIcon::Transfer, &CrossPointSettings::fileTransferShortcut,
                          &CrossPointSettings::fileTransferShortcutOrder, &CrossPointSettings::fileTransferShortcutVisible},

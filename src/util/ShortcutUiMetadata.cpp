@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "AchievementsStore.h"
+#include "FavoritesStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "util/SleepImageUtils.h"
@@ -41,6 +42,8 @@ std::string getSyncDayShortcutSubtitle() {
 }
 
 std::string getRecentBooksShortcutSubtitle() { return std::to_string(RECENT_BOOKS.getCount()); }
+
+std::string getFavoritesShortcutSubtitle() { return std::to_string(FAVORITES.getCount()); }
 
 std::string getSleepShortcutSubtitle() {
   const std::string selectedDirectory = SleepImageUtils::resolveConfiguredSleepDirectory();
@@ -78,6 +81,8 @@ std::string ShortcutUiMetadata::getSubtitle(const ShortcutDefinition& definition
       return getAchievementsShortcutSubtitle();
     case ShortcutId::RecentBooks:
       return getRecentBooksShortcutSubtitle();
+    case ShortcutId::Favorites:
+      return getFavoritesShortcutSubtitle();
     case ShortcutId::Sleep:
       return getSleepShortcutSubtitle();
     case ShortcutId::FileTransfer:

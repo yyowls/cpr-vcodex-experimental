@@ -5,6 +5,7 @@ class CrossPointState;
 class WifiCredentialStore;
 class KOReaderCredentialStore;
 class RecentBooksStore;
+class FavoritesStore;
 class ReadingStatsStore;
 class AchievementsStore;
 
@@ -29,6 +30,10 @@ bool loadKOReader(KOReaderCredentialStore& store, const char* json, bool* needsR
 // RecentBooksStore
 bool saveRecentBooks(const RecentBooksStore& store, const char* path);
 bool loadRecentBooks(RecentBooksStore& store, const char* json);
+
+// FavoritesStore
+bool saveFavorites(const FavoritesStore& store, const char* path);
+bool loadFavorites(FavoritesStore& store, const char* json);
 
 // ReadingStatsStore
 bool saveReadingStats(const ReadingStatsStore& store, const char* path);

@@ -15,6 +15,7 @@
 #include "ButtonRemapActivity.h"
 #include "activities/apps/AchievementsActivity.h"
 #include "activities/apps/BookmarksAppActivity.h"
+#include "activities/apps/FavoritesAppActivity.h"
 #include "activities/apps/IfFoundActivity.h"
 #include "activities/apps/ReadMeActivity.h"
 #include "activities/apps/ReadingHeatmapActivity.h"
@@ -69,6 +70,8 @@ const std::vector<SettingInfo>& getDeviceDisplaySettings() {
           {StrId::STR_PAGES_1, StrId::STR_PAGES_5, StrId::STR_PAGES_10, StrId::STR_PAGES_15, StrId::STR_PAGES_30}),
       SettingInfo::Enum(StrId::STR_UI_THEME, &CrossPointSettings::uiTheme,
                         {StrId::STR_THEME_LYRA, StrId::STR_THEME_LYRA_CUSTOM}),
+      SettingInfo::Enum(StrId::STR_HOME_CAROUSEL, &CrossPointSettings::homeCarouselSource,
+                        {StrId::STR_RECENTS, StrId::STR_FAVORITES}),
       SettingInfo::Toggle(StrId::STR_DARK_MODE, &CrossPointSettings::darkMode),
       SettingInfo::Toggle(StrId::STR_SUNLIGHT_FADING_FIX, &CrossPointSettings::fadingFix),
   };
@@ -182,6 +185,7 @@ const std::vector<SettingInfo>& getDeviceOnlyAppSettings() {
       SettingInfo::Action(StrId::STR_SYNC_WITH_PREV_STATS, SettingAction::SyncAchievementsFromStats),
       SettingInfo::Section(StrId::STR_APPS),
       SettingInfo::Action(StrId::STR_BOOKMARKS, SettingAction::Bookmarks),
+      SettingInfo::Action(StrId::STR_FAVORITES, SettingAction::Favorites),
       SettingInfo::Action(StrId::STR_SLEEP, SettingAction::SleepApp),
       SettingInfo::Action(StrId::STR_IF_FOUND_RETURN_ME, SettingAction::IfFound),
       SettingInfo::Action(StrId::STR_README, SettingAction::ReadMe),
@@ -675,6 +679,9 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::Bookmarks:
         startActivityForResult(std::make_unique<BookmarksAppActivity>(renderer, mappedInput), resultHandler);
+        break;
+      case SettingAction::Favorites:
+        startActivityForResult(std::make_unique<FavoritesAppActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::SleepApp:
         startActivityForResult(std::make_unique<SleepAppActivity>(renderer, mappedInput), resultHandler);

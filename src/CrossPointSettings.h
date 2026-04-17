@@ -148,6 +148,11 @@ class CrossPointSettings {
 
   // UI Theme
   enum UI_THEME { LYRA = 0, LYRA_CUSTOM = 1, UI_THEME_COUNT };
+  enum HOME_CAROUSEL_SOURCE {
+    HOME_CAROUSEL_RECENTS = 0,
+    HOME_CAROUSEL_FAVORITES = 1,
+    HOME_CAROUSEL_SOURCE_COUNT
+  };
   enum DATE_FORMAT {
     DATE_DD_MM_YYYY = 0,
     DATE_MM_DD_YYYY = 1,
@@ -241,6 +246,7 @@ class CrossPointSettings {
   // Experimental global dark mode for the device UI and supported readers.
   uint8_t darkMode = 0;
   // Home/apps helpers
+  uint8_t homeCarouselSource = HOME_CAROUSEL_RECENTS;
   uint8_t displayDay = 1;
   uint8_t autoSyncDay = 1;
   uint8_t syncDayReminderStarts = SYNC_DAY_REMINDER_20;
@@ -277,10 +283,12 @@ class CrossPointSettings {
   uint8_t recentBooksShortcutOrder = 11;
   uint8_t bookmarksShortcut = SHORTCUT_APPS;
   uint8_t bookmarksShortcutOrder = 12;
+  uint8_t favoritesShortcut = SHORTCUT_APPS;
+  uint8_t favoritesShortcutOrder = 13;
   uint8_t fileTransferShortcut = SHORTCUT_APPS;
-  uint8_t fileTransferShortcutOrder = 13;
+  uint8_t fileTransferShortcutOrder = 14;
   uint8_t sleepShortcut = SHORTCUT_APPS;
-  uint8_t sleepShortcutOrder = 14;
+  uint8_t sleepShortcutOrder = 15;
   uint8_t browseFilesShortcutVisible = 1;
   uint8_t statsShortcutVisible = 1;
   uint8_t syncDayShortcutVisible = 1;
@@ -293,6 +301,7 @@ class CrossPointSettings {
   uint8_t readMeShortcutVisible = 1;
   uint8_t recentBooksShortcutVisible = 1;
   uint8_t bookmarksShortcutVisible = 1;
+  uint8_t favoritesShortcutVisible = 1;
   uint8_t fileTransferShortcutVisible = 1;
   uint8_t sleepShortcutVisible = 1;
   // Sunlight fading compensation

@@ -39,6 +39,7 @@ enum class SettingAction {
   OrderHomeShortcuts,
   OrderAppsShortcuts,
   Bookmarks,
+  Favorites,
   SleepApp,
   IfFound,
   ReadMe,

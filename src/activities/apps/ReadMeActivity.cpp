@@ -48,6 +48,8 @@ std::string ReadMeActivity::getTopicTitle(const Topic topic) {
       return tr(STR_READING_PROFILE);
     case Topic::Bookmarks:
       return tr(STR_BOOKMARKS);
+    case Topic::Favorites:
+      return tr(STR_FAVORITES);
     case Topic::Sleep:
       return tr(STR_SLEEP);
     case Topic::Shortcuts:
@@ -74,6 +76,8 @@ std::string ReadMeActivity::getTopicBody(const Topic topic) {
       return tr(STR_README_PROFILE_BODY);
     case Topic::Bookmarks:
       return tr(STR_README_BOOKMARKS_BODY);
+    case Topic::Favorites:
+      return tr(STR_README_FAVORITES_BODY);
     case Topic::Sleep:
       return tr(STR_README_SLEEP_BODY);
     case Topic::Shortcuts:

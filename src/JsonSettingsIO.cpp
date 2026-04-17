@@ -14,6 +14,7 @@
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "AchievementsStore.h"
+#include "FavoritesStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "SettingsList.h"
@@ -277,6 +278,8 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
       clamp(doc["frontButtonLeft"] | (uint8_t)S::FRONT_HW_LEFT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_LEFT);
   s.frontButtonRight =
       clamp(doc["frontButtonRight"] | (uint8_t)S::FRONT_HW_RIGHT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_RIGHT);
+  s.homeCarouselSource =
+      clamp(doc["homeCarouselSource"] | s.homeCarouselSource, S::HOME_CAROUSEL_SOURCE_COUNT, s.homeCarouselSource);
   s.displayDay = clamp(doc["displayDay"] | s.displayDay, static_cast<uint8_t>(2), s.displayDay);
   s.autoSyncDay = clamp(doc["autoSyncDay"] | s.autoSyncDay, static_cast<uint8_t>(2), s.autoSyncDay);
   s.syncDayReminderStarts =
@@ -347,6 +350,10 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
       clamp(doc["bookmarksShortcut"] | s.bookmarksShortcut, shortcutLocationCount, s.bookmarksShortcut);
   s.bookmarksShortcutOrder =
       clamp(doc["bookmarksShortcutOrder"] | s.bookmarksShortcutOrder, shortcutOrderCount, s.bookmarksShortcutOrder);
+  s.favoritesShortcut =
+      clamp(doc["favoritesShortcut"] | s.favoritesShortcut, shortcutLocationCount, s.favoritesShortcut);
+  s.favoritesShortcutOrder =
+      clamp(doc["favoritesShortcutOrder"] | s.favoritesShortcutOrder, shortcutOrderCount, s.favoritesShortcutOrder);
   s.fileTransferShortcut =
       clamp(doc["fileTransferShortcut"] | s.fileTransferShortcut, shortcutLocationCount, s.fileTransferShortcut);
   s.fileTransferShortcutOrder = clamp(doc["fileTransferShortcutOrder"] | s.fileTransferShortcutOrder,
@@ -388,6 +395,9 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
   s.bookmarksShortcutVisible =
       clamp(doc["bookmarksShortcutVisible"] | s.bookmarksShortcutVisible, static_cast<uint8_t>(2),
             s.bookmarksShortcutVisible);
+  s.favoritesShortcutVisible =
+      clamp(doc["favoritesShortcutVisible"] | s.favoritesShortcutVisible, static_cast<uint8_t>(2),
+            s.favoritesShortcutVisible);
   s.fileTransferShortcutVisible =
       clamp(doc["fileTransferShortcutVisible"] | s.fileTransferShortcutVisible, static_cast<uint8_t>(2),
             s.fileTransferShortcutVisible);
@@ -488,6 +498,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["sleepTimeout"] = s.sleepTimeout;
   doc["showHiddenFiles"] = s.showHiddenFiles;
 
+  doc["homeCarouselSource"] = s.homeCarouselSource;
   doc["displayDay"] = s.displayDay;
   doc["syncDayReminderStarts"] = s.syncDayReminderStarts;
   doc["dateFormat"] = s.dateFormat;
@@ -541,6 +552,8 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["recentBooksShortcutOrder"] = s.recentBooksShortcutOrder;
   doc["bookmarksShortcut"] = s.bookmarksShortcut;
   doc["bookmarksShortcutOrder"] = s.bookmarksShortcutOrder;
+  doc["favoritesShortcut"] = s.favoritesShortcut;
+  doc["favoritesShortcutOrder"] = s.favoritesShortcutOrder;
   doc["fileTransferShortcut"] = s.fileTransferShortcut;
   doc["fileTransferShortcutOrder"] = s.fileTransferShortcutOrder;
   doc["sleepShortcut"] = s.sleepShortcut;
@@ -557,6 +570,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["readMeShortcutVisible"] = s.readMeShortcutVisible;
   doc["recentBooksShortcutVisible"] = s.recentBooksShortcutVisible;
   doc["bookmarksShortcutVisible"] = s.bookmarksShortcutVisible;
+  doc["favoritesShortcutVisible"] = s.favoritesShortcutVisible;
   doc["fileTransferShortcutVisible"] = s.fileTransferShortcutVisible;
   doc["sleepShortcutVisible"] = s.sleepShortcutVisible;
 
@@ -654,6 +668,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       clamp(doc["frontButtonLeft"] | (uint8_t)S::FRONT_HW_LEFT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_LEFT);
   s.frontButtonRight =
       clamp(doc["frontButtonRight"] | (uint8_t)S::FRONT_HW_RIGHT, S::FRONT_BUTTON_HARDWARE_COUNT, S::FRONT_HW_RIGHT);
+  s.homeCarouselSource =
+      clamp(doc["homeCarouselSource"] | s.homeCarouselSource, S::HOME_CAROUSEL_SOURCE_COUNT, s.homeCarouselSource);
   s.displayDay = clamp(doc["displayDay"] | s.displayDay, static_cast<uint8_t>(2), s.displayDay);
   s.autoSyncDay = clamp(doc["autoSyncDay"] | s.autoSyncDay, static_cast<uint8_t>(2), s.autoSyncDay);
   s.syncDayReminderStarts =
@@ -724,6 +740,10 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
       clamp(doc["bookmarksShortcut"] | s.bookmarksShortcut, shortcutLocationCount, s.bookmarksShortcut);
   s.bookmarksShortcutOrder =
       clamp(doc["bookmarksShortcutOrder"] | s.bookmarksShortcutOrder, shortcutOrderCount, s.bookmarksShortcutOrder);
+  s.favoritesShortcut =
+      clamp(doc["favoritesShortcut"] | s.favoritesShortcut, shortcutLocationCount, s.favoritesShortcut);
+  s.favoritesShortcutOrder =
+      clamp(doc["favoritesShortcutOrder"] | s.favoritesShortcutOrder, shortcutOrderCount, s.favoritesShortcutOrder);
   s.fileTransferShortcut =
       clamp(doc["fileTransferShortcut"] | s.fileTransferShortcut, shortcutLocationCount, s.fileTransferShortcut);
   s.fileTransferShortcutOrder = clamp(doc["fileTransferShortcutOrder"] | s.fileTransferShortcutOrder,
@@ -765,6 +785,9 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
   s.bookmarksShortcutVisible =
       clamp(doc["bookmarksShortcutVisible"] | s.bookmarksShortcutVisible, static_cast<uint8_t>(2),
             s.bookmarksShortcutVisible);
+  s.favoritesShortcutVisible =
+      clamp(doc["favoritesShortcutVisible"] | s.favoritesShortcutVisible, static_cast<uint8_t>(2),
+            s.favoritesShortcutVisible);
   s.fileTransferShortcutVisible =
       clamp(doc["fileTransferShortcutVisible"] | s.fileTransferShortcutVisible, static_cast<uint8_t>(2),
             s.fileTransferShortcutVisible);
@@ -912,6 +935,51 @@ bool JsonSettingsIO::loadRecentBooks(RecentBooksStore& store, const char* json) 
 
   store.normalizeBooks();
   LOG_DBG("RBS", "Recent books loaded from file (%d entries)", store.getCount());
+  return true;
+}
+
+// ---- FavoritesStore ----
+
+bool JsonSettingsIO::saveFavorites(const FavoritesStore& store, const char* path) {
+  JsonDocument doc;
+  doc["formatVersion"] = 1;
+  JsonArray arr = doc["books"].to<JsonArray>();
+  for (const auto& book : store.getBooks()) {
+    JsonObject obj = arr.add<JsonObject>();
+    obj["bookId"] = book.bookId;
+    obj["path"] = book.path;
+    obj["title"] = book.title;
+    obj["author"] = book.author;
+    obj["coverBmpPath"] = book.coverBmpPath;
+  }
+
+  String json;
+  serializeJson(doc, json);
+  return Storage.writeFile(path, json);
+}
+
+bool JsonSettingsIO::loadFavorites(FavoritesStore& store, const char* json) {
+  JsonDocument doc;
+  auto error = deserializeJson(doc, json);
+  if (error) {
+    LOG_ERR("FAV", "JSON parse error: %s", error.c_str());
+    return false;
+  }
+
+  store.favoriteBooks.clear();
+  JsonArray arr = doc["books"].as<JsonArray>();
+  for (JsonObject obj : arr) {
+    FavoriteBook book;
+    book.bookId = obj["bookId"] | std::string("");
+    book.path = obj["path"] | std::string("");
+    book.title = obj["title"] | std::string("");
+    book.author = obj["author"] | std::string("");
+    book.coverBmpPath = obj["coverBmpPath"] | std::string("");
+    store.favoriteBooks.push_back(book);
+  }
+
+  store.normalizeBooks();
+  LOG_DBG("FAV", "Favorites loaded from file (%d entries)", store.getCount());
   return true;
 }
 

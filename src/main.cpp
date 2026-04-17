@@ -17,6 +17,7 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "FavoritesStore.h"
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
 #include "AchievementsStore.h"
@@ -344,6 +345,7 @@ void setup() {
   APP_STATE.loadFromFile();
   READING_STATS.loadFromFile();
   RECENT_BOOKS.loadFromFile();
+  FAVORITES.loadFromFile();
   ACHIEVEMENTS.loadFromFile();
 
   const bool countUsefulStart =

@@ -17,10 +17,12 @@
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "FavoritesStore.h"
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "activities/apps/AchievementsActivity.h"
 #include "activities/apps/BookmarksAppActivity.h"
+#include "activities/apps/FavoritesAppActivity.h"
 #include "activities/apps/IfFoundActivity.h"
 #include "activities/apps/ReadMeActivity.h"
 #include "activities/apps/ReadingHeatmapActivity.h"
@@ -47,6 +49,21 @@ struct HomeShortcutEntry {
 
 std::string getRecentBookConfirmationLabel(const RecentBook& book) {
   return !book.title.empty() ? book.title : book.path;
+}
+
+std::string getBookTitleFromPath(const std::string& path) {
+  const size_t slashPos = path.find_last_of('/');
+  const std::string filename = slashPos == std::string::npos ? path : path.substr(slashPos + 1);
+  const size_t dotPos = filename.rfind('.');
+  return dotPos == std::string::npos ? filename : filename.substr(0, dotPos);
+}
+
+RecentBook toRecentBook(const FavoriteBook& book) {
+  RecentBook recentBook{book.bookId, book.path, book.title, book.author, book.coverBmpPath};
+  if (recentBook.title.empty()) {
+    recentBook.title = getBookTitleFromPath(recentBook.path);
+  }
+  return recentBook;
 }
 
 std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsUrl) {
@@ -109,13 +126,28 @@ int HomeActivity::getMenuItemCount() const {
   return static_cast<int>(recentBooks.size() + getHomeShortcutEntries(hasOpdsUrl).size());
 }
 
-void HomeActivity::loadRecentBooks(int maxBooks) {
+void HomeActivity::loadHomeCarouselBooks(const int maxBooks) {
   recentBooks.clear();
+  if (SETTINGS.homeCarouselSource == CrossPointSettings::HOME_CAROUSEL_FAVORITES) {
+    const auto& books = FAVORITES.getBooks();
+    recentBooks.reserve(std::min(static_cast<int>(books.size()), maxBooks));
+    for (const FavoriteBook& book : books) {
+      if (static_cast<int>(recentBooks.size()) >= maxBooks) {
+        break;
+      }
+      if (!Storage.exists(book.path.c_str())) {
+        continue;
+      }
+      recentBooks.push_back(toRecentBook(book));
+    }
+    return;
+  }
+
   const auto& books = RECENT_BOOKS.getBooks();
   recentBooks.reserve(std::min(static_cast<int>(books.size()), maxBooks));
 
   for (const RecentBook& book : books) {
-    if (recentBooks.size() >= maxBooks) {
+    if (static_cast<int>(recentBooks.size()) >= maxBooks) {
       break;
     }
     if (!Storage.exists(book.path.c_str())) {
@@ -207,7 +239,7 @@ void HomeActivity::onEnter() {
   recentsLoaded = false;
 
   const auto& metrics = UITheme::getInstance().getMetrics();
-  loadRecentBooks(metrics.homeRecentBooksCount);
+  loadHomeCarouselBooks(metrics.homeRecentBooksCount);
   recentsLoaded = !needsRecentCoverLoad(metrics.homeCoverHeight);
 
   requestUpdate();
@@ -310,7 +342,8 @@ void HomeActivity::loop() {
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (selectorIndex < recentBooks.size()) {
-      if (mappedInput.getHeldTime() >= RECENT_BOOK_LONG_PRESS_MS) {
+      if (SETTINGS.homeCarouselSource == CrossPointSettings::HOME_CAROUSEL_RECENTS &&
+          mappedInput.getHeldTime() >= RECENT_BOOK_LONG_PRESS_MS) {
         const RecentBook selectedBook = recentBooks[selectorIndex];
         const int currentSelection = selectorIndex;
         startActivityForResult(
@@ -324,7 +357,7 @@ void HomeActivity::loop() {
 
               if (RECENT_BOOKS.removeBook(selectedBook.path)) {
                 const auto& metrics = UITheme::getInstance().getMetrics();
-                loadRecentBooks(metrics.homeRecentBooksCount);
+                loadHomeCarouselBooks(metrics.homeRecentBooksCount);
                 if (recentBooks.empty()) {
                   selectorIndex = 0;
                 } else if (currentSelection >= static_cast<int>(recentBooks.size())) {
@@ -394,6 +427,10 @@ void HomeActivity::loop() {
           break;
         case ShortcutId::Bookmarks:
           startActivityForResult(std::make_unique<BookmarksAppActivity>(renderer, mappedInput),
+                                 [this](const ActivityResult&) { requestUpdate(); });
+          break;
+        case ShortcutId::Favorites:
+          startActivityForResult(std::make_unique<FavoritesAppActivity>(renderer, mappedInput),
                                  [this](const ActivityResult&) { requestUpdate(); });
           break;
         case ShortcutId::FileTransfer:
