@@ -19,6 +19,7 @@
 | Project | `CPR-vCodex` |
 | Device | `Xteink X4` |
 | Current release (CPR-vCodex) build | `1.2.0.25-cpr-vcodex` |
+| Changelog | [CHANGELOG.md](./CHANGELOG.md) |
 | Base firmware line | `CrossPoint Reader 1.2.0` |
 | Latest official commit reviewed | [`64f5ef0`](https://github.com/crosspoint-reader/crosspoint-reader/commit/64f5ef09fd4c46e3d2e382c47c3bfd581da92f2d) |
 | Latest official commit incorporated | [`64f5ef0`](https://github.com/crosspoint-reader/crosspoint-reader/commit/64f5ef09fd4c46e3d2e382c47c3bfd581da92f2d) |
