@@ -48,7 +48,18 @@ void GfxRenderer::begin() {
   bwBufferChunks.assign((frameBufferSize + BW_BUFFER_CHUNK_SIZE - 1) / BW_BUFFER_CHUNK_SIZE, nullptr);
 }
 
-void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) { fontMap.insert({fontId, font}); }
+void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) {
+  const auto it = fontMap.find(fontId);
+  if (it != fontMap.end()) {
+    it->second = font;
+  } else {
+    fontMap.emplace(fontId, font);
+  }
+
+  if (fontCacheManager_) {
+    fontCacheManager_->clearCache();
+  }
+}
 
 // Translate logical (x,y) coordinates to physical panel coordinates based on current orientation
 // This should always be inlined for better performance
