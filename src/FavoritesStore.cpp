@@ -2,6 +2,7 @@
 
 #include <HalStorage.h>
 #include <JsonSettingsIO.h>
+#include <Logging.h>
 
 #include <algorithm>
 
@@ -190,6 +191,13 @@ FavoriteBook FavoritesStore::getDataFromBook(std::string path) const {
 }
 
 bool FavoritesStore::loadFromFile() {
+  const std::string tempPath = std::string(FAVORITES_FILE_JSON) + ".tmp";
+  if (!Storage.exists(FAVORITES_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), FAVORITES_FILE_JSON)) {
+      LOG_DBG("FAV", "Recovered favorites.json from interrupted temp file");
+    }
+  }
+
   if (!Storage.exists(FAVORITES_FILE_JSON)) {
     return false;
   }

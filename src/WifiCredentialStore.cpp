@@ -6,6 +6,8 @@
 #include <ObfuscationUtils.h>
 #include <Serialization.h>
 
+#include <string>
+
 // Initialize the static instance
 WifiCredentialStore WifiCredentialStore::instance;
 
@@ -35,6 +37,13 @@ bool WifiCredentialStore::saveToFile() const {
 }
 
 bool WifiCredentialStore::loadFromFile() {
+  const std::string tempPath = std::string(WIFI_FILE_JSON) + ".tmp";
+  if (!Storage.exists(WIFI_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), WIFI_FILE_JSON)) {
+      LOG_DBG("WCS", "Recovered wifi.json from interrupted temp file");
+    }
+  }
+
   // Try JSON first
   if (Storage.exists(WIFI_FILE_JSON)) {
     String json = Storage.readFile(WIFI_FILE_JSON);

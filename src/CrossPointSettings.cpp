@@ -101,6 +101,13 @@ bool CrossPointSettings::saveToFile() const {
 }
 
 bool CrossPointSettings::loadFromFile() {
+  const std::string tempPath = std::string(SETTINGS_FILE_JSON) + ".tmp";
+  if (!Storage.exists(SETTINGS_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), SETTINGS_FILE_JSON)) {
+      LOG_DBG("CPS", "Recovered settings.json from interrupted temp file");
+    }
+  }
+
   // Try JSON first
   if (Storage.exists(SETTINGS_FILE_JSON)) {
     String json = Storage.readFile(SETTINGS_FILE_JSON);

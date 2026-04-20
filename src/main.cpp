@@ -29,7 +29,9 @@
 #include "activities/ActivityManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/BootRecovery.h"
 #include "util/ButtonNavigator.h"
+#include "util/CprVcodexLogs.h"
 #include "util/ScreenshotUtil.h"
 
 MappedInputManager mappedInputManager(gpio);
@@ -310,10 +312,32 @@ void setup() {
   }
 
   HalSystem::checkPanic();
+  BootRecovery::initialize();
 
-  SETTINGS.loadFromFile();
-  I18N.loadSettings();
-  KOREADER_STORE.loadFromFile();
+  const auto logSkip = [](const char* message) { CprVcodexLogs::appendEvent("BOOT", message); };
+
+  if (BootRecovery::shouldSkipSettings()) {
+    logSkip("Skipping settings load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::Settings);
+    SETTINGS.loadFromFile();
+  }
+
+  if (BootRecovery::shouldSkipLanguage()) {
+    logSkip("Skipping language load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::Language);
+    I18N.loadSettings();
+  }
+
+  if (BootRecovery::shouldSkipKOReader()) {
+    logSkip("Skipping KOReader credential load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::KOReader);
+    KOREADER_STORE.loadFromFile();
+  }
+
+  BootRecovery::enterStage(BootRecovery::BootStage::UiTheme);
   UITheme::getInstance().reload();
   ButtonNavigator::setMappedInputManager(mappedInputManager);
 
@@ -339,26 +363,77 @@ void setup() {
   // First serial output only here to avoid timing inconsistencies for power button press duration verification
   LOG_DBG("MAIN", "Starting CrossPoint version " CROSSPOINT_VERSION);
 
+  gpio.update();
+  const bool manualSafeBoot = gpio.isPressed(HalGPIO::BTN_BACK);
+  if (manualSafeBoot) {
+    CprVcodexLogs::appendEvent("BOOT", "Manual safe boot requested by holding Back during boot");
+  }
+
+  BootRecovery::enterStage(BootRecovery::BootStage::DisplayAndFonts);
   setupDisplayAndFonts();
 
   activityManager.goToBoot();
 
-  APP_STATE.loadFromFile();
-  READING_STATS.loadFromFile();
-  RECENT_BOOKS.loadFromFile();
-  FAVORITES.loadFromFile();
-  FLASHCARDS.loadFromFile();
-  ACHIEVEMENTS.loadFromFile();
+  const bool skipStateLoad = manualSafeBoot || BootRecovery::shouldSkipState();
+  const bool skipReadingStatsLoad = manualSafeBoot || BootRecovery::shouldSkipReadingStats();
+  const bool skipRecentBooksLoad = manualSafeBoot || BootRecovery::shouldSkipRecentBooks();
+  const bool skipFavoritesLoad = manualSafeBoot || BootRecovery::shouldSkipFavorites();
+  const bool skipFlashcardsLoad = manualSafeBoot || BootRecovery::shouldSkipFlashcards();
+  const bool skipAchievementsLoad = manualSafeBoot || BootRecovery::shouldSkipAchievements();
+  const bool forceHomeBoot = manualSafeBoot || BootRecovery::shouldForceHome();
 
-  const bool countUsefulStart =
-      wakeupReason != HalGPIO::WakeupReason::AfterUSBPower && wakeupReason != HalGPIO::WakeupReason::AfterFlash;
+  if (skipStateLoad) {
+    logSkip("Skipping app state load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::State);
+    APP_STATE.loadFromFile();
+  }
+
+  if (skipReadingStatsLoad) {
+    logSkip("Skipping reading stats load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::ReadingStats);
+    READING_STATS.loadFromFile();
+  }
+
+  if (skipRecentBooksLoad) {
+    logSkip("Skipping recent books load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::RecentBooks);
+    RECENT_BOOKS.loadFromFile();
+  }
+
+  if (skipFavoritesLoad) {
+    logSkip("Skipping favorites load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::Favorites);
+    FAVORITES.loadFromFile();
+  }
+
+  if (skipFlashcardsLoad) {
+    logSkip("Skipping flashcards load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::Flashcards);
+    FLASHCARDS.loadFromFile();
+  }
+
+  if (skipAchievementsLoad) {
+    logSkip("Skipping achievements load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::Achievements);
+    ACHIEVEMENTS.loadFromFile();
+  }
+
+  const bool countUsefulStart = !forceHomeBoot && wakeupReason != HalGPIO::WakeupReason::AfterUSBPower &&
+                                wakeupReason != HalGPIO::WakeupReason::AfterFlash;
   const uint8_t syncDayReminderThreshold = SETTINGS.getSyncDayReminderStartThreshold();
+  BootRecovery::enterStage(BootRecovery::BootStage::RouteDecision);
 
-  if (HalSystem::isRebootFromPanic()) {
+  if (HalSystem::isRebootFromPanic() && !forceHomeBoot) {
     // If we rebooted from a panic, go to crash report screen to show the panic info
     activityManager.goToCrashReport();
   } else {
-    const bool bootToHome = APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
+    const bool bootToHome = forceHomeBoot || APP_STATE.openEpubPath.empty() || !APP_STATE.lastSleepFromReader ||
                             mappedInputManager.isPressed(MappedInputManager::Button::Back) ||
                             APP_STATE.readerActivityLoadCount > 0;
 
@@ -380,6 +455,8 @@ void setup() {
       activityManager.goToReader(path);
     }
   }
+
+  BootRecovery::markBootCompleted();
 
   // Ensure we're not still holding the power button before leaving setup
   waitForPowerRelease();

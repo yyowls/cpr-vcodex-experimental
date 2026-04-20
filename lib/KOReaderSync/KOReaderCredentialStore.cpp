@@ -6,6 +6,8 @@
 #include <ObfuscationUtils.h>
 #include <Serialization.h>
 
+#include <string>
+
 #include "../../src/JsonSettingsIO.h"
 
 // Initialize the static instance
@@ -40,6 +42,13 @@ bool KOReaderCredentialStore::saveToFile() const {
 }
 
 bool KOReaderCredentialStore::loadFromFile() {
+  const std::string tempPath = std::string(KOREADER_FILE_JSON) + ".tmp";
+  if (!Storage.exists(KOREADER_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), KOREADER_FILE_JSON)) {
+      LOG_DBG("KRS", "Recovered koreader.json from interrupted temp file");
+    }
+  }
+
   // Try JSON first
   if (Storage.exists(KOREADER_FILE_JSON)) {
     String json = Storage.readFile(KOREADER_FILE_JSON);

@@ -6,6 +6,7 @@
 #include <Serialization.h>
 
 #include <algorithm>
+#include <string>
 
 #include "util/TimeUtils.h"
 
@@ -48,6 +49,13 @@ bool CrossPointState::saveToFile() {
 }
 
 bool CrossPointState::loadFromFile() {
+  const std::string tempPath = std::string(STATE_FILE_JSON) + ".tmp";
+  if (!Storage.exists(STATE_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), STATE_FILE_JSON)) {
+      LOG_DBG("CPS", "Recovered state.json from interrupted temp file");
+    }
+  }
+
   // Try JSON first
   if (Storage.exists(STATE_FILE_JSON)) {
     String json = Storage.readFile(STATE_FILE_JSON);
