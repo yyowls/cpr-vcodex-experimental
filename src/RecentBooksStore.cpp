@@ -19,6 +19,20 @@ constexpr char RECENT_BOOKS_FILE_BIN[] = "/.crosspoint/recent.bin";
 constexpr char RECENT_BOOKS_FILE_JSON[] = "/.crosspoint/recent.json";
 constexpr char RECENT_BOOKS_FILE_BAK[] = "/.crosspoint/recent.bin.bak";
 constexpr int MAX_RECENT_BOOKS = 10;
+
+std::string fallbackTitleFromPath(const std::string& path) {
+  std::string filename = path;
+  const size_t lastSlash = filename.find_last_of('/');
+  if (lastSlash != std::string::npos) {
+    filename = filename.substr(lastSlash + 1);
+  }
+
+  const size_t dotPos = filename.find_last_of('.');
+  if (dotPos != std::string::npos) {
+    filename = filename.substr(0, dotPos);
+  }
+  return filename;
+}
 }  // namespace
 
 RecentBooksStore RecentBooksStore::instance;
@@ -191,6 +205,13 @@ RecentBook RecentBooksStore::getDataFromBook(std::string path) const {
 }
 
 bool RecentBooksStore::loadFromFile() {
+  const std::string tempPath = std::string(RECENT_BOOKS_FILE_JSON) + ".tmp";
+  if (!Storage.exists(RECENT_BOOKS_FILE_JSON) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), RECENT_BOOKS_FILE_JSON)) {
+      LOG_DBG("RBS", "Recovered recent.json from interrupted temp file");
+    }
+  }
+
   // Try JSON first
   if (Storage.exists(RECENT_BOOKS_FILE_JSON)) {
     String json = Storage.readFile(RECENT_BOOKS_FILE_JSON);
@@ -221,7 +242,7 @@ bool RecentBooksStore::loadFromBinaryFile() {
   uint8_t version;
   serialization::readPod(inputFile, version);
   if (version == 1 || version == 2) {
-    // Old version, just read paths
+    // Old version: migrate lightly to avoid opening EPUB/XTC during boot.
     uint8_t count;
     serialization::readPod(inputFile, count);
     recentBooks.clear();
@@ -229,18 +250,23 @@ bool RecentBooksStore::loadFromBinaryFile() {
     for (uint8_t i = 0; i < count; i++) {
       std::string path;
       serialization::readString(inputFile, path);
-
-      // load book to get missing data
-      RecentBook book = getDataFromBook(path);
-      if (book.title.empty() && book.author.empty() && version == 2) {
-        // Fall back to loading what we can from the store
-        std::string title, author;
+      std::string title;
+      std::string author;
+      if (version == 2) {
         serialization::readString(inputFile, title);
         serialization::readString(inputFile, author);
-        recentBooks.push_back({BookIdentity::resolveStableBookId(path), path, title, author, ""});
-      } else {
-        recentBooks.push_back(book);
       }
+
+      const std::string normalizedPath = BookIdentity::normalizePath(path);
+      if (normalizedPath.empty()) {
+        continue;
+      }
+
+      if (title.empty()) {
+        title = fallbackTitleFromPath(normalizedPath);
+      }
+
+      recentBooks.push_back({BookIdentity::resolveStableBookId(normalizedPath), normalizedPath, title, author, ""});
     }
   } else if (version == 3) {
     uint8_t count;

@@ -217,7 +217,7 @@ class CrossPointSettings {
   // Text rendering settings
   uint8_t extraParagraphSpacing = 1;
   uint8_t textAntiAliasing = 1;
-  uint8_t textDarkness = TEXT_DARKNESS_EXTRA_DARK;
+  uint8_t textDarkness = TEXT_DARKNESS_NORMAL;
   // Short power button click behaviour
   uint8_t shortPwrBtn = IGNORE;
   // EPUB reading orientation settings

@@ -14,6 +14,7 @@
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "util/BookIdentity.h"
+#include "util/CprVcodexLogs.h"
 #include "util/TimeUtils.h"
 
 namespace {
@@ -59,16 +60,52 @@ std::string fnv1aHex(const std::string& value) {
 }
 
 bool saveJsonDocumentToFile(const char* moduleName, const char* path, const JsonDocument& doc) {
+  const std::string targetPath = path ? path : "";
+  const std::string tempPath = targetPath + ".tmp";
+
+  if (targetPath.empty()) {
+    LOG_ERR(moduleName, "Missing JSON path for write");
+    CprVcodexLogs::appendEvent(moduleName, "Missing JSON path for write");
+    return false;
+  }
+
+  if (Storage.exists(tempPath.c_str())) {
+    Storage.remove(tempPath.c_str());
+  }
+
   HalFile file;
-  if (!Storage.openFileForWrite(moduleName, path, file)) {
-    LOG_ERR(moduleName, "Could not open JSON file for write: %s", path);
+  if (!Storage.openFileForWrite(moduleName, tempPath.c_str(), file)) {
+    LOG_ERR(moduleName, "Could not open JSON file for write: %s", tempPath.c_str());
+    CprVcodexLogs::appendEvent(moduleName, std::string("Could not open JSON temp file for write: ") + tempPath);
     return false;
   }
 
   const size_t written = serializeJson(doc, file);
   file.flush();
   file.close();
-  return written > 0;
+  if (written == 0) {
+    Storage.remove(tempPath.c_str());
+    CprVcodexLogs::appendEvent(moduleName, std::string("serializeJson wrote 0 bytes for ") + targetPath);
+    return false;
+  }
+
+  if (Storage.exists(targetPath.c_str()) && !Storage.remove(targetPath.c_str())) {
+    Storage.remove(tempPath.c_str());
+    LOG_ERR(moduleName, "Could not remove JSON file before replace: %s", targetPath.c_str());
+    CprVcodexLogs::appendEvent(moduleName,
+                               std::string("Could not remove JSON file before replace: ") + targetPath);
+    return false;
+  }
+
+  if (!Storage.rename(tempPath.c_str(), targetPath.c_str())) {
+    Storage.remove(tempPath.c_str());
+    LOG_ERR(moduleName, "Could not rename JSON temp file to final path: %s", targetPath.c_str());
+    CprVcodexLogs::appendEvent(moduleName,
+                               std::string("Could not rename JSON temp file to final path: ") + targetPath);
+    return false;
+  }
+
+  return true;
 }
 
 bool loadJsonDocumentFromFile(const char* moduleName, const char* path, JsonDocument& doc) {
@@ -85,6 +122,12 @@ bool loadJsonDocumentFromFile(const char* moduleName, const char* path, JsonDocu
   auto error = deserializeJson(doc, json);
   if (error) {
     LOG_ERR(moduleName, "JSON parse error in %s: %s", path, error.c_str());
+    const std::string reportBody = std::string("File: ") + path + "\nModule: " + moduleName +
+                                   "\nError: " + error.c_str() + "\n";
+    std::string outPath;
+    if (CprVcodexLogs::writeReport("json_error", reportBody, &outPath)) {
+      CprVcodexLogs::appendEvent(moduleName, std::string("Saved JSON parse error report to ") + outPath);
+    }
     return false;
   }
   return true;
@@ -361,11 +404,19 @@ bool FlashcardsStore::saveToFile() const {
 }
 
 bool FlashcardsStore::loadFromFile() {
+  const std::string indexPath = getIndexPath();
+  const std::string tempPath = indexPath + ".tmp";
+  if (!Storage.exists(indexPath.c_str()) && Storage.exists(tempPath.c_str())) {
+    if (Storage.rename(tempPath.c_str(), indexPath.c_str())) {
+      LOG_DBG("FCS", "Recovered flashcards_index.json from interrupted temp file");
+    }
+  }
+
   knownDecks.clear();
   recentDeckIds.clear();
 
   JsonDocument doc;
-  if (!loadJsonDocumentFromFile("FCS", getIndexPath().c_str(), doc)) {
+  if (!loadJsonDocumentFromFile("FCS", indexPath.c_str(), doc)) {
     return false;
   }
 
