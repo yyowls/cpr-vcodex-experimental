@@ -19,6 +19,7 @@
 #include "CrossPointState.h"
 #include "FavoritesStore.h"
 #include "MappedInputManager.h"
+#include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
 #include "activities/apps/AchievementsActivity.h"
 #include "activities/apps/BookmarksAppActivity.h"
@@ -67,7 +68,7 @@ RecentBook toRecentBook(const FavoriteBook& book) {
   return recentBook;
 }
 
-std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsUrl) {
+std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsServers) {
   std::vector<HomeShortcutEntry> entries;
   entries.push_back(HomeShortcutEntry{nullptr, true, false});
 
@@ -84,7 +85,7 @@ std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsUrl) {
     return lhsOrder < rhsOrder;
   });
 
-  if (hasOpdsUrl) {
+  if (hasOpdsServers) {
     entries.push_back(HomeShortcutEntry{nullptr, false, true});
   }
 
@@ -124,7 +125,7 @@ bool showHomeShortcutAccessory(const HomeShortcutEntry& entry) {
 }  // namespace
 
 int HomeActivity::getMenuItemCount() const {
-  return static_cast<int>(recentBooks.size() + getHomeShortcutEntries(hasOpdsUrl).size());
+  return static_cast<int>(recentBooks.size() + getHomeShortcutEntries(hasOpdsServers).size());
 }
 
 void HomeActivity::loadHomeCarouselBooks(const int maxBooks) {
@@ -232,7 +233,7 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
 void HomeActivity::onEnter() {
   Activity::onEnter();
 
-  hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
+  hasOpdsServers = OPDS_STORE.hasServers();
 
   selectorIndex = 0;
   firstRenderDone = false;
@@ -294,7 +295,7 @@ void HomeActivity::freeCoverBuffer() {
 
 void HomeActivity::loop() {
   const int menuCount = getMenuItemCount();
-  const auto homeEntries = getHomeShortcutEntries(hasOpdsUrl);
+  const auto homeEntries = getHomeShortcutEntries(hasOpdsServers);
   const int recentCount = static_cast<int>(recentBooks.size());
   const int homeCount = static_cast<int>(homeEntries.size());
 
@@ -465,7 +466,7 @@ void HomeActivity::render(RenderLock&&) {
                           recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
-  const auto homeEntries = getHomeShortcutEntries(hasOpdsUrl);
+  const auto homeEntries = getHomeShortcutEntries(hasOpdsServers);
   const int selectedHomeIndex = selectorIndex - static_cast<int>(recentBooks.size());
   const Rect shortcutsRect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
                            pageHeight - (metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing +

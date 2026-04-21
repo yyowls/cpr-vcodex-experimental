@@ -23,6 +23,7 @@ enum RecoveryBits : uint32_t {
   SKIP_FLASHCARDS = 1u << 7,
   SKIP_ACHIEVEMENTS = 1u << 8,
   FORCE_HOME = 1u << 9,
+  SKIP_OPDS = 1u << 10,
 };
 
 RTC_NOINIT_ATTR uint8_t recordedStageRaw = static_cast<uint8_t>(BootRecovery::BootStage::None);
@@ -42,6 +43,8 @@ uint32_t getSkipMaskForStage(const BootRecovery::BootStage stage) {
       return SKIP_LANGUAGE | FORCE_HOME;
     case Stage::KOReader:
       return SKIP_KOREADER | FORCE_HOME;
+    case Stage::OPDS:
+      return SKIP_OPDS | FORCE_HOME;
     case Stage::UiTheme:
       return SKIP_SETTINGS | SKIP_LANGUAGE | FORCE_HOME;
     case Stage::DisplayAndFonts:
@@ -202,6 +205,8 @@ const char* getStageName(const BootStage stage) {
       return "language";
     case BootStage::KOReader:
       return "koreader";
+    case BootStage::OPDS:
+      return "opds";
     case BootStage::UiTheme:
       return "uiTheme";
     case BootStage::DisplayAndFonts:
@@ -232,6 +237,7 @@ bool shouldForceHome() { return hasMask(FORCE_HOME); }
 bool shouldSkipSettings() { return hasMask(SKIP_SETTINGS); }
 bool shouldSkipLanguage() { return hasMask(SKIP_LANGUAGE); }
 bool shouldSkipKOReader() { return hasMask(SKIP_KOREADER); }
+bool shouldSkipOPDS() { return hasMask(SKIP_OPDS); }
 bool shouldSkipState() { return hasMask(SKIP_STATE); }
 bool shouldSkipReadingStats() { return hasMask(SKIP_READING_STATS); }
 bool shouldSkipRecentBooks() { return hasMask(SKIP_RECENT_BOOKS); }
