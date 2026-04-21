@@ -10,6 +10,8 @@
 #include <Logging.h>
 #include <esp_system.h>
 
+#include <limits>
+
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "AchievementsStore.h"
@@ -181,6 +183,10 @@ void EpubReaderActivity::onEnter() {
     if (dataSize == 4 || dataSize == 6) {
       currentSpineIndex = data[0] + (data[1] << 8);
       nextPageNumber = data[2] + (data[3] << 8);
+      if (nextPageNumber == UINT16_MAX) {
+        LOG_DBG("ERS", "Ignoring stale last-page sentinel from progress cache");
+        nextPageNumber = 0;
+      }
       cachedSpineIndex = currentSpineIndex;
       LOG_DBG("ERS", "Loaded cache: %d, %d", currentSpineIndex, nextPageNumber);
     }
@@ -371,7 +377,8 @@ void EpubReaderActivity::loop() {
       exitReaderToHomeOrStats(renderer, mappedInput, epub ? epub->getPath() : "");
     } else {
       currentSpineIndex = epub->getSpineItemsCount() - 1;
-      nextPageNumber = UINT16_MAX;
+      nextPageNumber = 0;
+      pendingPageJump = std::numeric_limits<uint16_t>::max();
       requestUpdate();
     }
     return;
@@ -391,6 +398,9 @@ void EpubReaderActivity::loop() {
     {
       RenderLock lock(*this);
       nextPageNumber = 0;
+      if (!nextTriggered) {
+        pendingPageJump = std::numeric_limits<uint16_t>::max();
+      }
       currentSpineIndex = nextTriggered ? currentSpineIndex + 1 : currentSpineIndex - 1;
       section.reset();
     }
@@ -620,12 +630,20 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     }
     case EpubReaderMenuActivity::MenuAction::SYNC: {
       if (KOREADER_STORE.hasCredentials()) {
-        const int currentPage = section ? section->currentPage : 0;
-        const int totalPages = section ? section->pageCount : 0;
+        const int currentPage = section ? section->currentPage : nextPageNumber;
+        const int totalPages = section ? section->pageCount : cachedChapterTotalPageCount;
+        std::optional<uint16_t> paragraphIndex;
+        if (section && currentPage >= 0 && currentPage < section->pageCount) {
+          const uint16_t paragraphPage =
+              currentPage > 0 ? static_cast<uint16_t>(currentPage - 1) : static_cast<uint16_t>(currentPage);
+          if (const auto pIdx = section->getParagraphIndexForPage(paragraphPage)) {
+            paragraphIndex = *pIdx;
+          }
+        }
         READING_STATS.noteActivity();
         startActivityForResult(
             std::make_unique<KOReaderSyncActivity>(renderer, mappedInput, epub, epub->getPath(), currentSpineIndex,
-                                                   currentPage, totalPages),
+                                                   currentPage, totalPages, paragraphIndex),
             [this](const ActivityResult& result) {
               READING_STATS.resumeSession();
               if (!result.isCancelled) {
@@ -634,6 +652,9 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                   RenderLock lock(*this);
                   currentSpineIndex = sync.spineIndex;
                   nextPageNumber = sync.page;
+                  cachedChapterTotalPageCount = 0;
+                  pendingPageJump.reset();
+                  saveProgress(currentSpineIndex, nextPageNumber, 0);
                   section.reset();
                 }
               }
@@ -801,10 +822,21 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       LOG_DBG("ERS", "Cache found, skipping build...");
     }
 
-    if (nextPageNumber == UINT16_MAX) {
-      section->currentPage = section->pageCount - 1;
+    if (pendingPageJump.has_value()) {
+      if (*pendingPageJump >= section->pageCount && section->pageCount > 0) {
+        section->currentPage = section->pageCount - 1;
+      } else {
+        section->currentPage = *pendingPageJump;
+      }
+      pendingPageJump.reset();
     } else {
       section->currentPage = nextPageNumber;
+      if (section->currentPage < 0) {
+        section->currentPage = 0;
+      } else if (section->currentPage >= section->pageCount && section->pageCount > 0) {
+        LOG_DBG("ERS", "Clamping cached page %d to %d", section->currentPage, section->pageCount - 1);
+        section->currentPage = section->pageCount - 1;
+      }
     }
 
     if (!pendingAnchor.empty()) {

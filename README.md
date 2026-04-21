@@ -18,12 +18,12 @@
 |---|---|
 | Project | `CPR-vCodex` |
 | Device | `Xteink X4` |
-| Current release (CPR-vCodex) build | [`1.2.0.28-cpr-vcodex`](https://github.com/franssjz/cpr-vcodex/releases/tag/1.2.0.28-cpr-vcodex) |
+| Current release (CPR-vCodex) build | [`1.2.0.29-cpr-vcodex`](https://github.com/franssjz/cpr-vcodex/releases/tag/1.2.0.29-cpr-vcodex) |
 | Latest Open Dyslexic font build | [`1.2.0.25-cpr-vcodex`](https://github.com/franssjz/cpr-vcodex/releases/tag/1.2.0.25-cpr-vcodex) |
 | Changelog | [CHANGELOG.md](./CHANGELOG.md) |
 | Base firmware line | `CrossPoint Reader 1.2.0` |
-| Latest official commit reviewed | [`64f5ef0`](https://github.com/crosspoint-reader/crosspoint-reader/commit/64f5ef09fd4c46e3d2e382c47c3bfd581da92f2d) |
-| Latest official commit incorporated | [`64f5ef0`](https://github.com/crosspoint-reader/crosspoint-reader/commit/64f5ef09fd4c46e3d2e382c47c3bfd581da92f2d) |
+| Latest official commit reviewed | [`e28918b`](https://github.com/crosspoint-reader/crosspoint-reader/commit/e28918b24da0ca21eb8ec711ced614901e01a529) |
+| Latest official commit incorporated | [`e28918b`](https://github.com/crosspoint-reader/crosspoint-reader/commit/e28918b24da0ca21eb8ec711ced614901e01a529) |
 
 ## Flashcards study modes
 

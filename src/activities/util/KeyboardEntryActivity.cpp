@@ -49,7 +49,7 @@ int KeyboardEntryActivity::getTotalRowCount() const { return getContentRowCount(
 bool KeyboardEntryActivity::isBottomRow(const int row) const { return row == getContentRowCount(); }
 
 char KeyboardEntryActivity::getSelectedChar() const {
-  const KeyDef(*layout)[COLS] = symMode ? symLayout : abcLayout;
+  const KeyDef(*layout)[COLS] = symMode ? symLayout : (inputType == InputType::Url ? urlLayout : abcLayout);
 
   if (selectedRow < 0 || selectedRow >= getContentRowCount()) return '\0';
   if (selectedCol < 0 || selectedCol >= COLS) return '\0';
@@ -620,7 +620,7 @@ void KeyboardEntryActivity::render(RenderLock&&) {
     urlLeftMargin = urlCenterX - urlTotalWidth / 2;
   }
 
-  const KeyDef(*layout)[COLS] = symMode ? symLayout : abcLayout;
+  const KeyDef(*layout)[COLS] = symMode ? symLayout : (inputType == InputType::Url ? urlLayout : abcLayout);
   const int contentRows = getContentRowCount();
 
   for (int row = 0; row < contentRows; row++) {
