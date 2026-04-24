@@ -53,6 +53,8 @@ const std::vector<SettingInfo>& getSettingsList() {
                           StrId::STR_CAT_READER),
       SettingInfo::Toggle(StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled, "hyphenationEnabled",
                           StrId::STR_CAT_READER),
+      SettingInfo::Toggle(StrId::STR_BIONIC_READING, &CrossPointSettings::bionicReading, "bionicReading",
+                          StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
                         {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW},
                         "orientation", StrId::STR_CAT_READER),
@@ -88,6 +90,8 @@ const std::vector<SettingInfo>& getSettingsList() {
 
       // --- Apps ---
       SettingInfo::Toggle(StrId::STR_DISPLAY_DAY, &CrossPointSettings::displayDay, "displayDay", StrId::STR_APPS),
+      SettingInfo::Enum(StrId::STR_CHOOSE_WIFI, &CrossPointSettings::syncDayWifiChoice,
+                        {StrId::STR_REFRESH_MODE_AUTO, StrId::STR_MANUAL}, "syncDayWifiChoice", StrId::STR_APPS),
       SettingInfo::Enum(StrId::STR_SYNC_DAY_REMINDER_EVERY, &CrossPointSettings::syncDayReminderStarts,
                         {StrId::STR_STATE_OFF, StrId::STR_NUM_10, StrId::STR_NUM_20, StrId::STR_NUM_30,
                          StrId::STR_NUM_40, StrId::STR_NUM_50, StrId::STR_NUM_60},

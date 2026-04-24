@@ -17,7 +17,7 @@
 #include "util/TimeZoneRegistry.h"
 
 namespace {
-constexpr int ACTION_COUNT = 3;
+constexpr int ACTION_COUNT = 4;
 constexpr int HELP_TEXT_LINE_HEIGHT = 18;
 
 void wifiOff() {
@@ -77,6 +77,11 @@ std::string getDateFormatLabel() {
   }
 }
 
+std::string getWifiChoiceLabel() {
+  return SETTINGS.syncDayWifiChoice == CrossPointSettings::SYNC_DAY_WIFI_MANUAL ? std::string(tr(STR_MANUAL))
+                                                                                : std::string(tr(STR_REFRESH_MODE_AUTO));
+}
+
 std::string getNetworkStatusLabel() {
   return WiFi.status() == WL_CONNECTED ? std::string(tr(STR_CONNECTED)) : std::string(tr(STR_NOT_CONNECTED));
 }
@@ -114,12 +119,19 @@ void SyncDayActivity::loop() {
 
   if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
     if (selectedIndex == 0) {
-      if (isWifiConnected()) {
+      const bool chooseWifiManually = SETTINGS.syncDayWifiChoice == CrossPointSettings::SYNC_DAY_WIFI_MANUAL;
+      if (chooseWifiManually) {
+        openWifiSelection(false);
+      } else if (isWifiConnected()) {
         syncTime();
       } else {
-        openWifiSelection();
+        openWifiSelection(true);
       }
     } else if (selectedIndex == 1) {
+      SETTINGS.syncDayWifiChoice = (SETTINGS.syncDayWifiChoice + 1) % CrossPointSettings::SYNC_DAY_WIFI_CHOICE_COUNT;
+      SETTINGS.saveToFile();
+      requestUpdate();
+    } else if (selectedIndex == 2) {
       openTimeZoneSelection();
     } else {
       SETTINGS.dateFormat = (SETTINGS.dateFormat + 1) % CrossPointSettings::DATE_FORMAT_COUNT;
@@ -164,17 +176,20 @@ void SyncDayActivity::render(RenderLock&&) {
       renderer, Rect{0, listTop, pageWidth, listHeight}, ACTION_COUNT, selectedIndex,
       [](int index) {
         if (index == 0) return std::string(tr(STR_SYNC_NOW));
-        if (index == 1) return std::string(tr(STR_TIME_ZONE));
+        if (index == 1) return std::string(tr(STR_CHOOSE_WIFI));
+        if (index == 2) return std::string(tr(STR_TIME_ZONE));
         return std::string(tr(STR_DATE_FORMAT));
       },
       [](int index) {
         if (index == 0) return getObtainedDateLabel();
-        if (index == 1) return getTimeZoneLabel();
+        if (index == 1) return getWifiChoiceLabel();
+        if (index == 2) return getTimeZoneLabel();
         return getDateFormatLabel();
       },
       [](int index) {
         if (index == 0) return UIIcon::Wifi;
         if (index == 1) return UIIcon::Settings;
+        if (index == 2) return UIIcon::Settings;
         return UIIcon::Recent;
       },
       [](int index) { return index == 0 ? getNetworkStatusLabel() : std::string(); }, false);
@@ -219,8 +234,8 @@ void SyncDayActivity::openTimeZoneSelection() {
   });
 }
 
-void SyncDayActivity::openWifiSelection() {
-  startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
+void SyncDayActivity::openWifiSelection(const bool allowAutoConnect) {
+  startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput, allowAutoConnect),
                          [this](const ActivityResult& result) {
                            if (result.isCancelled || !isWifiConnected()) {
                              requestUpdate();

@@ -12,7 +12,7 @@ class SyncDayActivity final : public Activity {
   ButtonNavigator buttonNavigator;
   int selectedIndex = 0;
 
-  void openWifiSelection();
+  void openWifiSelection(bool allowAutoConnect);
   void openTimeZoneSelection();
   void syncTime();
   bool isWifiConnected() const;

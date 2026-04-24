@@ -159,6 +159,11 @@ class CrossPointSettings {
     DATE_YYYY_MM_DD = 2,
     DATE_FORMAT_COUNT
   };
+  enum SYNC_DAY_WIFI_CHOICE {
+    SYNC_DAY_WIFI_AUTO = 0,
+    SYNC_DAY_WIFI_MANUAL = 1,
+    SYNC_DAY_WIFI_CHOICE_COUNT
+  };
   enum DAILY_GOAL_TARGET {
     DAILY_GOAL_15_MIN = 0,
     DAILY_GOAL_30_MIN = 1,
@@ -244,6 +249,7 @@ class CrossPointSettings {
   // Reader refresh override (default auto)
   uint8_t readerRefreshMode = READER_REFRESH_AUTO;
   uint8_t hyphenationEnabled = 0;
+  uint8_t bionicReading = 0;
 
   // Reader screen margin settings
   uint8_t screenMargin = 5;
@@ -263,6 +269,7 @@ class CrossPointSettings {
   uint8_t homeCarouselSource = HOME_CAROUSEL_RECENTS;
   uint8_t displayDay = 1;
   uint8_t autoSyncDay = 1;
+  uint8_t syncDayWifiChoice = SYNC_DAY_WIFI_AUTO;
   uint8_t syncDayReminderStarts = SYNC_DAY_REMINDER_20;
   char sleepDirectory[128] = "";
   uint8_t sleepImageOrder = SLEEP_IMAGE_SHUFFLE;

@@ -225,7 +225,8 @@ void SleepActivity::renderDefaultSleepScreen() const {
   renderer.displayBuffer(HalDisplay::HALF_REFRESH);
 }
 
-void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::string& sourcePath) const {
+void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::string& sourcePath,
+                                            const bool applyCoverCrop) const {
   int x, y;
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
@@ -239,7 +240,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::str
 
     LOG_DBG("SLP", "bitmap ratio: %f, screen ratio: %f", ratio, screenRatio);
     if (ratio > screenRatio) {
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+      if (applyCoverCrop && SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
         cropX = 1.0f - (screenRatio / ratio);
         LOG_DBG("SLP", "Cropping bitmap x: %f", cropX);
         ratio = (1.0f - cropX) * static_cast<float>(bitmap.getWidth()) / static_cast<float>(bitmap.getHeight());
@@ -248,7 +249,7 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const std::str
       y = std::round((static_cast<float>(pageHeight) - static_cast<float>(pageWidth) / ratio) / 2);
       LOG_DBG("SLP", "Centering with ratio %f to y=%d", ratio, y);
     } else {
-      if (SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
+      if (applyCoverCrop && SETTINGS.sleepScreenCoverMode == CrossPointSettings::SLEEP_SCREEN_COVER_MODE::CROP) {
         cropY = 1.0f - (ratio / screenRatio);
         LOG_DBG("SLP", "Cropping bitmap y: %f", cropY);
         ratio = static_cast<float>(bitmap.getWidth()) / ((1.0f - cropY) * static_cast<float>(bitmap.getHeight()));
@@ -381,7 +382,7 @@ void SleepActivity::renderCoverSleepScreen() const {
     Bitmap bitmap(file);
     if (bitmap.parseHeaders() == BmpReaderError::Ok) {
       LOG_DBG("SLP", "Rendering sleep cover: %s", coverBmpPath.c_str());
-      renderBitmapSleepScreen(bitmap, coverBmpPath);
+      renderBitmapSleepScreen(bitmap, coverBmpPath, true);
       file.close();
       return;
     }
