@@ -4,6 +4,11 @@
 #include <Logging.h>
 #include <Serialization.h>
 
+namespace {
+constexpr uint8_t BIONIC_READING_OFF = 0;
+constexpr uint8_t BIONIC_READING_NORMAL = 1;
+constexpr uint8_t BIONIC_READING_SUBTLE = 2;
+
 // Bionic Reading helpers — no heap, no std::string, stack-only slicing.
 
 // Faithful port of metaguiding.py:78 — midpoint = 1 if n in (1,3) else ceil(n/2)
@@ -25,9 +30,10 @@ static inline bool isWordByte(uint8_t b) {
   if (b >= 0x80) return true;
   return (b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') || (b == '_');
 }
+}  // namespace
 
 void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int x, const int y,
-                       const bool bionicReading) const {
+                       const uint8_t bionicReadingMode) const {
   // Validate iterator bounds before rendering
   if (words.size() != wordXpos.size() || words.size() != wordStyles.size()) {
     LOG_ERR("TXB", "Render skipped: size mismatch (words=%u, xpos=%u, styles=%u)\n", (uint32_t)words.size(),
@@ -42,13 +48,13 @@ void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int 
 
     // Fast paths: bionic off, already-bold, or word too long for stack slice buffer.
     const bool alreadyBold = (currentStyle & EpdFontFamily::BOLD) != 0;
-    if (!bionicReading || alreadyBold || w.size() >= 128) {
+    const bool bionicEnabled =
+        bionicReadingMode == BIONIC_READING_NORMAL || bionicReadingMode == BIONIC_READING_SUBTLE;
+    if (bionicReadingMode == BIONIC_READING_OFF || !bionicEnabled || alreadyBold || w.size() >= 128) {
       renderer.drawText(fontId, wordX, y, w.c_str(), true, currentStyle);
     } else {
       // Stack slice buffer (<128 bytes, well within CLAUDE.md <256 byte rule).
       char buf[128];
-      const EpdFontFamily::Style boldStyle =
-          static_cast<EpdFontFamily::Style>(currentStyle | EpdFontFamily::BOLD);
       int cursorX = wordX;
       size_t i0 = 0;
 
@@ -66,7 +72,7 @@ void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int 
           if (i0 >= w.size()) break;
         }
 
-        // Word run: bold the first M codepoints, regular for the rest.
+        // Word run: emphasize the first M codepoints, regular for the rest.
         size_t k = i0;
         while (k < w.size() && isWordByte(static_cast<uint8_t>(w[k]))) ++k;
 
@@ -86,13 +92,21 @@ void TextBlock::render(const GfxRenderer& renderer, const int fontId, const int 
           splitByte = p;
         }
 
-        // Bold prefix.
+        // Emphasized prefix.
         {
           const size_t n = splitByte - i0;
           memcpy(buf, w.data() + i0, n);
           buf[n] = '\0';
-          renderer.drawText(fontId, cursorX, y, buf, true, boldStyle);
-          cursorX += renderer.getTextAdvanceX(fontId, buf, boldStyle);
+          if (bionicReadingMode == BIONIC_READING_SUBTLE) {
+            renderer.drawText(fontId, cursorX, y, buf, true, currentStyle);
+            renderer.drawText(fontId, cursorX + 1, y, buf, true, currentStyle);
+            cursorX += renderer.getTextAdvanceX(fontId, buf, currentStyle);
+          } else {
+            const EpdFontFamily::Style boldStyle =
+                static_cast<EpdFontFamily::Style>(currentStyle | EpdFontFamily::BOLD);
+            renderer.drawText(fontId, cursorX, y, buf, true, boldStyle);
+            cursorX += renderer.getTextAdvanceX(fontId, buf, boldStyle);
+          }
         }
 
         // Regular suffix (if any).
