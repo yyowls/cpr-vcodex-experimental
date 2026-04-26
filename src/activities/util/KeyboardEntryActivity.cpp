@@ -523,20 +523,25 @@ void KeyboardEntryActivity::render(RenderLock&&) {
     const int hintY = underlineY + 4;
     if (cursorMode) {
       int hintLineY = hintY;
-      renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, "Press < or > to move cursor", true);
+      if (inputType == InputType::Password && togglePos) {
+        renderer.drawCenteredText(
+            SMALL_FONT_ID, hintLineY,
+            passwordVisible ? tr(STR_KB_HINT_TOGGLE_HIDE_PASSWORD) : tr(STR_KB_HINT_TOGGLE_SHOW_PASSWORD), true);
+      } else {
+        renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, tr(STR_KB_HINT_MOVE_CURSOR), true);
+      }
       hintLineY += hintLh;
       if (inputType == InputType::Password) {
         const char* passTip;
         if (togglePos) {
-          passTip = "Press < to return to cursor position";
+          passTip = tr(STR_KB_HINT_RETURN_CURSOR);
         } else {
-          passTip =
-              passwordVisible ? "Hold > then press [***] to hide password" : "Hold > then press [abc] to show password";
+          passTip = passwordVisible ? tr(STR_KB_HINT_HIDE_PASSWORD) : tr(STR_KB_HINT_SHOW_PASSWORD);
         }
         renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, passTip, true);
       }
     } else {
-      renderer.drawCenteredText(SMALL_FONT_ID, hintY, "Hold UP to edit entry", true);
+      renderer.drawCenteredText(SMALL_FONT_ID, hintY, tr(STR_KB_HINT_EDIT_ENTRY), true);
     }
   }
 
@@ -572,37 +577,37 @@ void KeyboardEntryActivity::render(RenderLock&&) {
 
   if (tipCount > 0) {
     int y = (underlineBottom + keyboardStartY) / 2 - (tipCount + 1) * tipsLh / 2;
-    drawTip("Tips:", y);
+    drawTip(tr(STR_KB_TIPS), y);
     y += tipsLh;
     if (cursorMode) {
-      drawTip("Press DOWN to return to keyboard", y);
+      drawTip(tr(STR_KB_HINT_RETURN_KEYBOARD), y);
     } else if (urlMode) {
-      drawTip("Press ABC to exit URL mode", y);
+      drawTip(tr(STR_KB_HINT_EXIT_URL_MODE), y);
       y += tipsLh;
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     } else if (symMode) {
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     } else {
       const char* altCharTip;
       if (inputType == InputType::Url) {
-        altCharTip = "Hold SELECT for secondary char";
+        altCharTip = tr(STR_KB_HINT_SECONDARY_CHAR);
       } else if (shiftState > 0) {
-        altCharTip = "Hold SELECT for lowercase or secondary char";
+        altCharTip = tr(STR_KB_HINT_LOWER_SECONDARY);
       } else {
-        altCharTip = "Hold SELECT for UPPERCASE or secondary char";
+        altCharTip = tr(STR_KB_HINT_UPPER_SECONDARY);
       }
       drawTip(altCharTip, y);
       y += tipsLh;
       if (inputType == InputType::Url) {
-        drawTip("Press URL for snippets", y);
+        drawTip(tr(STR_KB_HINT_URL_SNIPPETS), y);
         y += tipsLh;
       }
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     }
   }
