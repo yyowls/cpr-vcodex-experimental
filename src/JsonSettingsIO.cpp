@@ -15,6 +15,7 @@
 #include "KOReaderCredentialStore.h"
 #include "AchievementsStore.h"
 #include "FavoritesStore.h"
+#include "OpdsServerStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "SettingsList.h"
@@ -312,7 +313,7 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
   loadEnum("paragraphAlignment", s.paragraphAlignment, CrossPointSettings::PARAGRAPH_ALIGNMENT_COUNT);
   loadToggle("embeddedStyle", s.embeddedStyle);
   loadToggle("hyphenationEnabled", s.hyphenationEnabled);
-  loadToggle("bionicReading", s.bionicReading);
+  loadEnum("bionicReading", s.bionicReading, CrossPointSettings::BIONIC_READING_MODE_COUNT);
   loadEnum("orientation", s.orientation, CrossPointSettings::ORIENTATION_COUNT);
   loadToggle("extraParagraphSpacing", s.extraParagraphSpacing);
   loadToggle("textAntiAliasing", s.textAntiAliasing);
@@ -454,6 +455,10 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
   s.sleepShortcut = clamp(doc["sleepShortcut"] | s.sleepShortcut, shortcutLocationCount, s.sleepShortcut);
   s.sleepShortcutOrder =
       clamp(doc["sleepShortcutOrder"] | s.sleepShortcutOrder, shortcutOrderCount, s.sleepShortcutOrder);
+  s.opdsBrowserShortcut =
+      clamp(doc["opdsBrowserShortcut"] | s.opdsBrowserShortcut, shortcutLocationCount, s.opdsBrowserShortcut);
+  s.opdsBrowserShortcutOrder = clamp(doc["opdsBrowserShortcutOrder"] | s.opdsBrowserShortcutOrder,
+                                     shortcutOrderCount, s.opdsBrowserShortcutOrder);
 
   s.browseFilesShortcutVisible =
       clamp(doc["browseFilesShortcutVisible"] | s.browseFilesShortcutVisible, static_cast<uint8_t>(2),
@@ -499,6 +504,8 @@ bool loadSettingsDirect(CrossPointSettings& s, const JsonDocument& doc, bool* ne
             s.fileTransferShortcutVisible);
   s.sleepShortcutVisible =
       clamp(doc["sleepShortcutVisible"] | s.sleepShortcutVisible, static_cast<uint8_t>(2), s.sleepShortcutVisible);
+  s.opdsBrowserShortcutVisible = clamp(doc["opdsBrowserShortcutVisible"] | s.opdsBrowserShortcutVisible,
+                                       static_cast<uint8_t>(2), s.opdsBrowserShortcutVisible);
 
   normalizeShortcutOrderSettings(s);
   CrossPointSettings::validateFrontButtonMapping(s);
@@ -662,6 +669,8 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["fileTransferShortcutOrder"] = s.fileTransferShortcutOrder;
   doc["sleepShortcut"] = s.sleepShortcut;
   doc["sleepShortcutOrder"] = s.sleepShortcutOrder;
+  doc["opdsBrowserShortcut"] = s.opdsBrowserShortcut;
+  doc["opdsBrowserShortcutOrder"] = s.opdsBrowserShortcutOrder;
   doc["browseFilesShortcutVisible"] = s.browseFilesShortcutVisible;
   doc["statsShortcutVisible"] = s.statsShortcutVisible;
   doc["syncDayShortcutVisible"] = s.syncDayShortcutVisible;
@@ -678,6 +687,7 @@ bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path)
   doc["flashcardsShortcutVisible"] = s.flashcardsShortcutVisible;
   doc["fileTransferShortcutVisible"] = s.fileTransferShortcutVisible;
   doc["sleepShortcutVisible"] = s.sleepShortcutVisible;
+  doc["opdsBrowserShortcutVisible"] = s.opdsBrowserShortcutVisible;
 
   return saveJsonDocumentToFile("CPS", path, doc);
 }
@@ -872,6 +882,10 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
   s.sleepShortcut = clamp(doc["sleepShortcut"] | s.sleepShortcut, shortcutLocationCount, s.sleepShortcut);
   s.sleepShortcutOrder =
       clamp(doc["sleepShortcutOrder"] | s.sleepShortcutOrder, shortcutOrderCount, s.sleepShortcutOrder);
+  s.opdsBrowserShortcut =
+      clamp(doc["opdsBrowserShortcut"] | s.opdsBrowserShortcut, shortcutLocationCount, s.opdsBrowserShortcut);
+  s.opdsBrowserShortcutOrder = clamp(doc["opdsBrowserShortcutOrder"] | s.opdsBrowserShortcutOrder,
+                                     shortcutOrderCount, s.opdsBrowserShortcutOrder);
 
   s.browseFilesShortcutVisible =
       clamp(doc["browseFilesShortcutVisible"] | s.browseFilesShortcutVisible, static_cast<uint8_t>(2),
@@ -917,6 +931,8 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
             s.fileTransferShortcutVisible);
   s.sleepShortcutVisible =
       clamp(doc["sleepShortcutVisible"] | s.sleepShortcutVisible, static_cast<uint8_t>(2), s.sleepShortcutVisible);
+  s.opdsBrowserShortcutVisible = clamp(doc["opdsBrowserShortcutVisible"] | s.opdsBrowserShortcutVisible,
+                                       static_cast<uint8_t>(2), s.opdsBrowserShortcutVisible);
 
   normalizeShortcutOrderSettings(s);
   CrossPointSettings::validateFrontButtonMapping(s);
@@ -1397,4 +1413,57 @@ bool JsonSettingsIO::loadAchievementsFromFile(AchievementsStore& store, const ch
     CprVcodexLogs::appendEvent("ACH", std::string("Failed to load achievements from ") + path);
   }
   return loaded;
+}
+
+// ---- OpdsServerStore ----
+// Follows the same save/load pattern as WifiCredentialStore above.
+// Passwords are XOR-obfuscated with the device MAC and base64-encoded ("password_obf" key).
+
+bool JsonSettingsIO::saveOpds(const OpdsServerStore& store, const char* path) {
+  JsonDocument doc;
+
+  JsonArray arr = doc["servers"].to<JsonArray>();
+  for (const auto& server : store.getServers()) {
+    JsonObject obj = arr.add<JsonObject>();
+    obj["name"] = server.name;
+    obj["url"] = server.url;
+    obj["username"] = server.username;
+    obj["password_obf"] = obfuscation::obfuscateToBase64(server.password);
+  }
+
+  String json;
+  serializeJson(doc, json);
+  return Storage.writeFile(path, json);
+}
+
+bool JsonSettingsIO::loadOpds(OpdsServerStore& store, const char* json, bool* needsResave) {
+  if (needsResave) *needsResave = false;
+  JsonDocument doc;
+  auto error = deserializeJson(doc, json);
+  if (error) {
+    LOG_ERR("OPS", "JSON parse error: %s", error.c_str());
+    return false;
+  }
+
+  store.servers.clear();
+  JsonArray arr = doc["servers"].as<JsonArray>();
+  for (JsonObject obj : arr) {
+    if (store.servers.size() >= OpdsServerStore::MAX_SERVERS) break;
+    OpdsServer server;
+    server.name = obj["name"] | std::string("");
+    server.url = obj["url"] | std::string("");
+    server.username = obj["username"] | std::string("");
+    // Try the obfuscated key first; fall back to plaintext "password" for
+    // files written before obfuscation was added (or hand-edited JSON).
+    bool ok = false;
+    server.password = obfuscation::deobfuscateFromBase64(obj["password_obf"] | "", &ok);
+    if (!ok || server.password.empty()) {
+      server.password = obj["password"] | std::string("");
+      if (!server.password.empty() && needsResave) *needsResave = true;
+    }
+    store.servers.push_back(std::move(server));
+  }
+
+  LOG_DBG("OPS", "Loaded %zu OPDS servers from file", store.servers.size());
+  return true;
 }

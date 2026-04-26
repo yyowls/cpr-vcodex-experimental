@@ -111,21 +111,21 @@ void ReaderActivity::onEnter() {
   } else if (isXtcFile(initialBookPath)) {
     auto xtc = loadXtc(initialBookPath);
     if (!xtc) {
-      onGoBack();
+      goToLibrary(initialBookPath);
       return;
     }
     onGoToXtcReader(std::move(xtc));
   } else if (isTxtFile(initialBookPath)) {
     auto txt = loadTxt(initialBookPath);
     if (!txt) {
-      onGoBack();
+      goToLibrary(initialBookPath);
       return;
     }
     onGoToTxtReader(std::move(txt));
   } else {
     auto epub = loadEpub(initialBookPath);
     if (!epub) {
-      onGoBack();
+      goToLibrary(initialBookPath);
       return;
     }
     onGoToEpubReader(std::move(epub));

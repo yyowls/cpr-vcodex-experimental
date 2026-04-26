@@ -24,12 +24,12 @@
 #include "activities/apps/ReadingStatsActivity.h"
 #include "activities/apps/SleepAppActivity.h"
 #include "activities/apps/SyncDayActivity.h"
-#include "CalibreSettingsActivity.h"
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
 #include "KOReaderSettingsActivity.h"
 #include "LanguageSelectActivity.h"
 #include "MappedInputManager.h"
+#include "OpdsServerListActivity.h"
 #include "OtaUpdateActivity.h"
 #include "ReadingStatsStore.h"
 #include "ShortcutLocationActivity.h"
@@ -94,7 +94,8 @@ const std::vector<SettingInfo>& getDeviceReaderSettings() {
                          StrId::STR_BOOK_S_STYLE}),
       SettingInfo::Toggle(StrId::STR_EMBEDDED_STYLE, &CrossPointSettings::embeddedStyle),
       SettingInfo::Toggle(StrId::STR_HYPHENATION, &CrossPointSettings::hyphenationEnabled),
-      SettingInfo::Toggle(StrId::STR_BIONIC_READING, &CrossPointSettings::bionicReading),
+      SettingInfo::Enum(StrId::STR_BIONIC_READING, &CrossPointSettings::bionicReading,
+                        {StrId::STR_STATE_OFF, StrId::STR_NORMAL, StrId::STR_SUBTLE}),
       SettingInfo::Enum(StrId::STR_ORIENTATION, &CrossPointSettings::orientation,
                         {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED, StrId::STR_LANDSCAPE_CCW}),
       SettingInfo::Toggle(StrId::STR_EXTRA_SPACING, &CrossPointSettings::extraParagraphSpacing),
@@ -130,7 +131,7 @@ const std::vector<SettingInfo>& getDeviceSystemSettings() {
       SettingInfo::Toggle(StrId::STR_SHOW_HIDDEN_FILES, &CrossPointSettings::showHiddenFiles),
       SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network),
       SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync),
-      SettingInfo::Action(StrId::STR_OPDS_BROWSER, SettingAction::OPDSBrowser),
+      SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser),
       SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache),
       SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates),
       SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language),
@@ -149,7 +150,7 @@ const std::vector<SettingInfo>& getDeviceOnlySystemSettings() {
   static const std::vector<SettingInfo> settings = {
       SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network),
       SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync),
-      SettingInfo::Action(StrId::STR_OPDS_BROWSER, SettingAction::OPDSBrowser),
+      SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser),
       SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache),
       SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates),
       SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language),
@@ -588,7 +589,7 @@ void SettingsActivity::toggleCurrentSetting() {
         startActivityForResult(std::make_unique<KOReaderSettingsActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::OPDSBrowser:
-        startActivityForResult(std::make_unique<CalibreSettingsActivity>(renderer, mappedInput), resultHandler);
+        startActivityForResult(std::make_unique<OpdsServerListActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::Network:
         startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput, false), resultHandler);

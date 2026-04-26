@@ -421,7 +421,7 @@ void KeyboardEntryActivity::render(RenderLock&&) {
 
   while (true) {
     std::string lineText = displayText.substr(lineStartIdx, lineEndIdx - lineStartIdx);
-    textWidth = renderer.getTextWidth(UI_12_FONT_ID, lineText.c_str());
+    textWidth = renderer.getTextAdvanceX(UI_12_FONT_ID, lineText.c_str(), EpdFontFamily::REGULAR);
     if (textWidth <= maxLineWidth) {
       const bool isLastLine = (lineEndIdx == static_cast<int>(displayText.length()));
       bool isCursorLine = false;
@@ -433,12 +433,14 @@ void KeyboardEntryActivity::render(RenderLock&&) {
         } else {
           beforeCursor = displayText.substr(lineStartIdx, cursorPos - lineStartIdx);
         }
-        int beforeWidth = renderer.getTextWidth(UI_12_FONT_ID, beforeCursor.c_str());
+        int beforeWidth = renderer.getTextAdvanceX(UI_12_FONT_ID, beforeCursor.c_str(), EpdFontFamily::REGULAR);
         int kernOffset = 0;
         if (cursorPos < displayText.length()) {
           std::string beforeAndCursor = beforeCursor + displayText.substr(cursorPos, 1);
-          int beforeAndCursorWidth = renderer.getTextWidth(UI_12_FONT_ID, beforeAndCursor.c_str());
-          int charAdvance = renderer.getTextWidth(UI_12_FONT_ID, displayText.substr(cursorPos, 1).c_str());
+          int beforeAndCursorWidth =
+              renderer.getTextAdvanceX(UI_12_FONT_ID, beforeAndCursor.c_str(), EpdFontFamily::REGULAR);
+          int charAdvance =
+              renderer.getTextAdvanceX(UI_12_FONT_ID, displayText.substr(cursorPos, 1).c_str(), EpdFontFamily::REGULAR);
           kernOffset = beforeAndCursorWidth - beforeWidth - charAdvance;
         }
         if (centerText) {
@@ -521,20 +523,25 @@ void KeyboardEntryActivity::render(RenderLock&&) {
     const int hintY = underlineY + 4;
     if (cursorMode) {
       int hintLineY = hintY;
-      renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, "Press < or > to move cursor", true);
+      if (inputType == InputType::Password && togglePos) {
+        renderer.drawCenteredText(
+            SMALL_FONT_ID, hintLineY,
+            passwordVisible ? tr(STR_KB_HINT_TOGGLE_HIDE_PASSWORD) : tr(STR_KB_HINT_TOGGLE_SHOW_PASSWORD), true);
+      } else {
+        renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, tr(STR_KB_HINT_MOVE_CURSOR), true);
+      }
       hintLineY += hintLh;
       if (inputType == InputType::Password) {
         const char* passTip;
         if (togglePos) {
-          passTip = "Press < to return to cursor position";
+          passTip = tr(STR_KB_HINT_RETURN_CURSOR);
         } else {
-          passTip =
-              passwordVisible ? "Hold > then press [***] to hide password" : "Hold > then press [abc] to show password";
+          passTip = passwordVisible ? tr(STR_KB_HINT_HIDE_PASSWORD) : tr(STR_KB_HINT_SHOW_PASSWORD);
         }
         renderer.drawCenteredText(SMALL_FONT_ID, hintLineY, passTip, true);
       }
     } else {
-      renderer.drawCenteredText(SMALL_FONT_ID, hintY, "Hold UP to edit entry", true);
+      renderer.drawCenteredText(SMALL_FONT_ID, hintY, tr(STR_KB_HINT_EDIT_ENTRY), true);
     }
   }
 
@@ -570,37 +577,37 @@ void KeyboardEntryActivity::render(RenderLock&&) {
 
   if (tipCount > 0) {
     int y = (underlineBottom + keyboardStartY) / 2 - (tipCount + 1) * tipsLh / 2;
-    drawTip("Tips:", y);
+    drawTip(tr(STR_KB_TIPS), y);
     y += tipsLh;
     if (cursorMode) {
-      drawTip("Press DOWN to return to keyboard", y);
+      drawTip(tr(STR_KB_HINT_RETURN_KEYBOARD), y);
     } else if (urlMode) {
-      drawTip("Press ABC to exit URL mode", y);
+      drawTip(tr(STR_KB_HINT_EXIT_URL_MODE), y);
       y += tipsLh;
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     } else if (symMode) {
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     } else {
       const char* altCharTip;
       if (inputType == InputType::Url) {
-        altCharTip = "Hold SELECT for secondary char";
+        altCharTip = tr(STR_KB_HINT_SECONDARY_CHAR);
       } else if (shiftState > 0) {
-        altCharTip = "Hold SELECT for lowercase or secondary char";
+        altCharTip = tr(STR_KB_HINT_LOWER_SECONDARY);
       } else {
-        altCharTip = "Hold SELECT for UPPERCASE or secondary char";
+        altCharTip = tr(STR_KB_HINT_UPPER_SECONDARY);
       }
       drawTip(altCharTip, y);
       y += tipsLh;
       if (inputType == InputType::Url) {
-        drawTip("Press URL for snippets", y);
+        drawTip(tr(STR_KB_HINT_URL_SNIPPETS), y);
         y += tipsLh;
       }
       if (!text.empty()) {
-        drawTip("Hold DEL to clear all text", y);
+        drawTip(tr(STR_KB_HINT_CLEAR_TEXT), y);
       }
     }
   }

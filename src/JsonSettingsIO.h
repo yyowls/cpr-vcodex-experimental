@@ -8,6 +8,7 @@ class RecentBooksStore;
 class FavoritesStore;
 class ReadingStatsStore;
 class AchievementsStore;
+class OpdsServerStore;
 
 namespace JsonSettingsIO {
 
@@ -42,5 +43,9 @@ bool loadReadingStatsFromFile(ReadingStatsStore& store, const char* path);
 bool saveAchievements(const AchievementsStore& store, const char* path);
 bool loadAchievements(AchievementsStore& store, const char* json);
 bool loadAchievementsFromFile(AchievementsStore& store, const char* path);
+
+// OpdsServerStore
+bool saveOpds(const OpdsServerStore& store, const char* path);
+bool loadOpds(OpdsServerStore& store, const char* json, bool* needsResave = nullptr);
 
 }  // namespace JsonSettingsIO

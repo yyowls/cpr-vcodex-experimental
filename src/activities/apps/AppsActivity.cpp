@@ -18,6 +18,7 @@
 #include "SyncDayActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "OpdsServerStore.h"
 #include "util/HeaderDateUtils.h"
 #include "util/ShortcutUiMetadata.h"
 
@@ -37,6 +38,13 @@ std::string buildAppsHeaderSubtitle(const int selectedIndex, const int totalItem
 void AppsActivity::onEnter() {
   Activity::onEnter();
   appShortcuts = getConfiguredShortcuts(CrossPointSettings::SHORTCUT_APPS);
+  if (!OPDS_STORE.hasServers()) {
+    appShortcuts.erase(std::remove_if(appShortcuts.begin(), appShortcuts.end(),
+                                      [](const ShortcutDefinition* definition) {
+                                        return definition && definition->id == ShortcutId::OpdsBrowser;
+                                      }),
+                       appShortcuts.end());
+  }
   selectedIndex = 0;
   rebuildShortcutSubtitles();
   requestUpdate();
@@ -188,6 +196,9 @@ void AppsActivity::openSelectedApp() {
     case ShortcutId::Sleep:
       activity = std::make_unique<SleepAppActivity>(renderer, mappedInput);
       break;
+    case ShortcutId::OpdsBrowser:
+      activityManager.goToBrowser();
+      return;
   }
 
   startActivityForResult(std::move(activity), [this](const ActivityResult&) {

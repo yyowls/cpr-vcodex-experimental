@@ -23,6 +23,7 @@
 #include "KOReaderCredentialStore.h"
 #include "MappedInputManager.h"
 #include "AchievementsStore.h"
+#include "OpdsServerStore.h"
 #include "ReadingStatsStore.h"
 #include "RecentBooksStore.h"
 #include "UiFontSelection.h"
@@ -342,6 +343,13 @@ void setup() {
   } else {
     BootRecovery::enterStage(BootRecovery::BootStage::KOReader);
     KOREADER_STORE.loadFromFile();
+  }
+
+  if (BootRecovery::shouldSkipOPDS()) {
+    logSkip("Skipping OPDS store load due to recovery mode");
+  } else {
+    BootRecovery::enterStage(BootRecovery::BootStage::OPDS);
+    OPDS_STORE.loadFromFile();
   }
 
   BootRecovery::enterStage(BootRecovery::BootStage::UiTheme);

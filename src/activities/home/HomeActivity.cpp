@@ -19,6 +19,7 @@
 #include "CrossPointState.h"
 #include "FavoritesStore.h"
 #include "MappedInputManager.h"
+#include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
 #include "activities/apps/AchievementsActivity.h"
 #include "activities/apps/BookmarksAppActivity.h"
@@ -45,7 +46,6 @@ constexpr int HOME_SHORTCUT_PAGE_SIZE = 4;
 struct HomeShortcutEntry {
   const ShortcutDefinition* definition = nullptr;
   bool isAppsHub = false;
-  bool isOpds = false;
 };
 
 std::string getRecentBookConfirmationLabel(const RecentBook& book) {
@@ -67,11 +67,14 @@ RecentBook toRecentBook(const FavoriteBook& book) {
   return recentBook;
 }
 
-std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsUrl) {
+std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsServers) {
   std::vector<HomeShortcutEntry> entries;
-  entries.push_back(HomeShortcutEntry{nullptr, true, false});
+  entries.push_back(HomeShortcutEntry{nullptr, true});
 
   for (const auto& definition : getShortcutDefinitions()) {
+    if (definition.id == ShortcutId::OpdsBrowser && !hasOpdsServers) {
+      continue;
+    }
     const auto location = static_cast<CrossPointSettings::SHORTCUT_LOCATION>(SETTINGS.*(definition.locationPtr));
     if (location == CrossPointSettings::SHORTCUT_HOME && getShortcutVisibility(definition)) {
       entries.push_back(HomeShortcutEntry{&definition});
@@ -84,19 +87,12 @@ std::vector<HomeShortcutEntry> getHomeShortcutEntries(const bool hasOpdsUrl) {
     return lhsOrder < rhsOrder;
   });
 
-  if (hasOpdsUrl) {
-    entries.push_back(HomeShortcutEntry{nullptr, false, true});
-  }
-
   return entries;
 }
 
 std::string getHomeShortcutTitle(const HomeShortcutEntry& entry) {
   if (entry.isAppsHub) {
     return tr(STR_APPS);
-  }
-  if (entry.isOpds) {
-    return tr(STR_OPDS_BROWSER);
   }
   if (!entry.definition) {
     return "";
@@ -112,9 +108,6 @@ UIIcon getHomeShortcutIcon(const HomeShortcutEntry& entry) {
   if (entry.isAppsHub) {
     return UIIcon::Book;
   }
-  if (entry.isOpds) {
-    return UIIcon::Library;
-  }
   return entry.definition ? entry.definition->icon : UIIcon::Folder;
 }
 
@@ -124,7 +117,7 @@ bool showHomeShortcutAccessory(const HomeShortcutEntry& entry) {
 }  // namespace
 
 int HomeActivity::getMenuItemCount() const {
-  return static_cast<int>(recentBooks.size() + getHomeShortcutEntries(hasOpdsUrl).size());
+  return static_cast<int>(recentBooks.size() + getHomeShortcutEntries(hasOpdsServers).size());
 }
 
 void HomeActivity::loadHomeCarouselBooks(const int maxBooks) {
@@ -232,7 +225,7 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
 void HomeActivity::onEnter() {
   Activity::onEnter();
 
-  hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0;
+  hasOpdsServers = OPDS_STORE.hasServers();
 
   selectorIndex = 0;
   firstRenderDone = false;
@@ -294,7 +287,7 @@ void HomeActivity::freeCoverBuffer() {
 
 void HomeActivity::loop() {
   const int menuCount = getMenuItemCount();
-  const auto homeEntries = getHomeShortcutEntries(hasOpdsUrl);
+  const auto homeEntries = getHomeShortcutEntries(hasOpdsServers);
   const int recentCount = static_cast<int>(recentBooks.size());
   const int homeCount = static_cast<int>(homeEntries.size());
 
@@ -386,8 +379,6 @@ void HomeActivity::loop() {
     const auto& selectedEntry = homeEntries[homeIndex];
     if (selectedEntry.isAppsHub) {
       onAppsOpen();
-    } else if (selectedEntry.isOpds) {
-      onOpdsBrowserOpen();
     } else if (selectedEntry.definition) {
       switch (selectedEntry.definition->id) {
         case ShortcutId::BrowseFiles:
@@ -445,6 +436,9 @@ void HomeActivity::loop() {
           startActivityForResult(std::make_unique<SleepAppActivity>(renderer, mappedInput),
                                  [this](const ActivityResult&) { requestUpdate(); });
           break;
+        case ShortcutId::OpdsBrowser:
+          onOpdsBrowserOpen();
+          break;
       }
     }
   }
@@ -465,7 +459,7 @@ void HomeActivity::render(RenderLock&&) {
                           recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
-  const auto homeEntries = getHomeShortcutEntries(hasOpdsUrl);
+  const auto homeEntries = getHomeShortcutEntries(hasOpdsServers);
   const int selectedHomeIndex = selectorIndex - static_cast<int>(recentBooks.size());
   const Rect shortcutsRect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
                            pageHeight - (metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing +
